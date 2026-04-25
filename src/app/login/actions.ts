@@ -20,10 +20,21 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function getSafeRedirectTo(value: FormDataEntryValue | null) {
+  const redirectTo = String(value ?? "/").trim();
+
+  // 只允许站内相对路径，防止跳转到外部恶意网址
+  if (redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    return redirectTo;
+  }
+
+  return "/";
+}
+
 export async function loginUserAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const redirectTo = String(formData.get("redirectTo") ?? "/").trim();
+  const redirectTo = getSafeRedirectTo(formData.get("redirectTo"));
 
   if (!email || !password) {
     redirect("/login?error=missing-required");
@@ -46,6 +57,7 @@ export async function loginUserAction(formData: FormData) {
   }
 
   const cookieStore = await cookies();
+
   cookieStore.set(AUTH_COOKIE_NAME, String(user.id), {
     httpOnly: true,
     sameSite: "lax",
@@ -53,11 +65,5 @@ export async function loginUserAction(formData: FormData) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
-  const redirectTo = String(formData.get("redirectTo") ?? "/").trim();
-
-  if (redirectTo.startsWith("/")) {
-    redirect(redirectTo);
-  }
-
-  redirect("/");
+  redirect(redirectTo);
 }
