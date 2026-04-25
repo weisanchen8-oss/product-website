@@ -49,3 +49,37 @@ export async function updateInquiryStatusAction(formData: FormData) {
 
   redirect(`/admin/inquiries/${inquiryId}?success=status-updated`);
 }
+
+export async function updateInquiryAdminNoteAction(formData: FormData) {
+  const inquiryIdValue = formData.get("inquiryId");
+  const adminNoteValue = formData.get("adminNote");
+
+  const inquiryId = Number(inquiryIdValue);
+  const adminNote =
+    typeof adminNoteValue === "string" ? adminNoteValue.trim() : "";
+
+  if (!inquiryId || Number.isNaN(inquiryId)) {
+    throw new Error("无效的询单 ID。");
+  }
+
+  await prisma.inquiry.update({
+    where: { id: inquiryId },
+    data: {
+      adminNote,
+    },
+  });
+
+  await prisma.inquiryLog.create({
+    data: {
+      inquiryId,
+      status: "note_updated",
+      note: adminNote || "清空了内部备注。",
+      operatorName: "后台工作人员",
+    },
+  });
+
+  revalidatePath("/admin/inquiries");
+  revalidatePath(`/admin/inquiries/${inquiryId}`);
+
+  redirect(`/admin/inquiries/${inquiryId}?success=note-updated`);
+}

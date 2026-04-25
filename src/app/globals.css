@@ -2061,3 +2061,45 @@ input {
   gap: 12px;
   margin-top: 24px;
 }
+
+
+.admin-note-form {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-note-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-note-field span {
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-note-field textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  background: #fff;
+}
+
+.admin-note-field textarea:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+}
+
+.admin-note-submit {
+  align-self: flex-start;
+}

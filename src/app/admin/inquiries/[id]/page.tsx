@@ -9,7 +9,10 @@ import { notFound } from "next/navigation";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { AdminActionToast } from "@/components/admin/admin-action-toast";
 import { prisma } from "@/lib/prisma";
-import { updateInquiryStatusAction } from "@/app/admin/inquiries/actions";
+import {
+  updateInquiryStatusAction,
+  updateInquiryAdminNoteAction,
+} from "@/app/admin/inquiries/actions";
 
 type AdminInquiryDetailPageProps = {
   params: Promise<{
@@ -69,6 +72,10 @@ export default async function AdminInquiryDetailPage({
         <AdminActionToast message="询单状态更新成功。" />
       ) : null}
 
+      {success === "note-updated" ? (
+        <AdminActionToast message="内部备注已保存。" />
+      ) : null}
+
       {error === "invalid-status" ? (
         <AdminActionToast message="状态更新失败：请选择有效状态。" />
       ) : null}
@@ -100,6 +107,30 @@ export default async function AdminInquiryDetailPage({
             <p><strong>备注说明：</strong>{inquiry.remark || "未填写"}</p>
           </div>
         </div>
+
+        <div className="admin-form-card admin-detail-section">
+         <h2>内部备注</h2>
+
+          <form action={updateInquiryAdminNoteAction} className="admin-note-form">
+            <input type="hidden" name="inquiryId" value={inquiry.id} />
+
+            <label className="admin-note-field">
+              <span>后台内部备注</span>
+
+              <textarea
+                name="adminNote"
+                rows={6}
+                defaultValue={inquiry.adminNote || ""}
+                placeholder="例如：客户已电话沟通，重点关注交期和批发价格。"
+              />
+            </label>
+
+            <button type="submit" className="primary-button admin-note-submit">
+              保存内部备注
+            </button>
+          </form>
+        </div>
+
 
         <div className="admin-form-card">
           <h2>更新询单状态</h2>

@@ -112,6 +112,7 @@ model Inquiry {
   email              String
   region             String?
   remark             String?
+  adminNote          String?
   estimatedTotalText String
   status             String       @default("pending")
   createdAt          DateTime     @default(now())
