@@ -17,6 +17,7 @@ import {
 } from "@/app/admin/products/actions";
 import { ProductSpecsEditor } from "@/components/admin/product-specs-editor";
 import Image from "next/image";
+import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 
 type AdminProductEditPageProps = {
   params: Promise<{
@@ -333,9 +334,12 @@ export default async function AdminProductEditPage({
                   <form action={deleteProductImageAction}>
                     <input type="hidden" name="productId" value={product.id} />
                     <input type="hidden" name="imageId" value={image.id} />
-                    <button type="submit" className="danger-button">
+                    <ConfirmSubmitButton
+                      className="danger-button"
+                      message="确定要删除这张产品图片吗？删除后不可恢复。"
+                    >
                       删除图片
-                    </button>
+                    </ConfirmSubmitButton>
                   </form>
                 </div>
               </div>

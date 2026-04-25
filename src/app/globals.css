@@ -3583,3 +3583,259 @@ input {
   background: #fffbeb;
   color: #92400e;
 }
+
+.admin-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.admin-bulk-toolbar strong {
+  display: block;
+  color: #020617;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.admin-bulk-toolbar span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-bulk-actions select {
+  height: 42px;
+  min-width: 150px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  outline: none;
+}
+
+.admin-bulk-submit {
+  height: 42px;
+  min-width: 112px;
+  padding: 0 18px;
+}
+
+.admin-bulk-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.admin-inquiry-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .admin-bulk-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-bulk-actions {
+    width: 100%;
+  }
+
+  .admin-bulk-actions select,
+  .admin-bulk-submit {
+    flex: 1;
+  }
+}
+
+/* 询单批量管理表格布局微调 */
+.admin-inquiry-table th,
+.admin-inquiry-table td {
+  padding: 14px 12px;
+}
+
+.admin-inquiry-table th:first-child,
+.admin-inquiry-table td:first-child {
+  width: 44px !important;
+  padding-left: 8px;
+  padding-right: 4px;
+  text-align: left !important;
+}
+
+.admin-inquiry-table th:first-child input,
+.admin-inquiry-table td:first-child input {
+  margin-left: 0;
+}
+
+.admin-inquiry-table th:nth-child(2),
+.admin-inquiry-table td:nth-child(2) {
+  padding-left: 8px;
+}
+
+.admin-inquiry-table .admin-table-action {
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+.admin-bulk-toolbar {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+
+
+/* ===== 表头 & 内容对齐修复 ===== */
+.admin-inquiry-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.admin-inquiry-table th,
+.admin-inquiry-table td {
+  padding: 14px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* 第一列（checkbox） */
+.admin-inquiry-table th:first-child,
+.admin-inquiry-table td:first-child {
+  width: 44px !important;
+  padding-left: 10px;
+}
+
+/* 询单编号列 */
+.admin-inquiry-table th:nth-child(2),
+.admin-inquiry-table td:nth-child(2) {
+  padding-left: 6px;
+}
+
+/* 数量列 */
+.admin-inquiry-table th:nth-child(5),
+.admin-inquiry-table td:nth-child(5) {
+  text-align: center;
+}
+
+/* ===== 状态列关键修复 ===== */
+.admin-inquiry-table th:nth-child(6),
+.admin-inquiry-table td:nth-child(6) {
+  text-align: left !important;
+  padding-left: 8px;
+}
+
+/* 状态 badge 左对齐（核心） */
+.admin-inquiry-table td:nth-child(6) .admin-status-badge {
+  justify-content: flex-start;
+  margin-left: 0;
+}
+
+/* ===== 操作列 ===== */
+.admin-inquiry-table th:last-child,
+.admin-inquiry-table td:last-child {
+  text-align: center;
+}
+
+/* 去掉多余居中类影响 */
+.admin-table-center {
+  text-align: center;
+}
+
+/* ===== 右侧列压缩（关键优化） ===== */
+
+/* 提交时间列 */
+.admin-inquiry-table th:nth-child(7),
+.admin-inquiry-table td:nth-child(7) {
+  white-space: nowrap;
+  font-size: 13px;
+  padding-right: 6px;
+}
+
+/* 操作列 */
+.admin-inquiry-table th:nth-child(8),
+.admin-inquiry-table td:nth-child(8) {
+  width: 90px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+}
+
+/* 操作按钮 */
+.admin-table-action {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* 表格整体再压一点 */
+.admin-inquiry-table th,
+.admin-inquiry-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.admin-inquiry-table-compact {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.admin-inquiry-table-compact th,
+.admin-inquiry-table-compact td {
+  padding: 13px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-inquiry-table-compact th:first-child,
+.admin-inquiry-table-compact td:first-child {
+  padding-left: 8px;
+  padding-right: 2px;
+}
+
+.admin-inquiry-table-compact th:nth-child(5),
+.admin-inquiry-table-compact td:nth-child(5) {
+  text-align: center;
+}
+
+.admin-inquiry-table-compact th:nth-child(6),
+.admin-inquiry-table-compact td:nth-child(6) {
+  padding-left: 4px;
+}
+
+.admin-inquiry-table-compact th:nth-child(7),
+.admin-inquiry-table-compact td:nth-child(7) {
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+.admin-inquiry-table-compact th:nth-child(8),
+.admin-inquiry-table-compact td:nth-child(8) {
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.admin-time-cell {
+  font-size: 13px;
+}
+
+.admin-inquiry-table-compact .admin-status-badge {
+  min-width: 68px;
+}
+
+.admin-inquiry-table-compact .admin-table-action {
+  min-width: 76px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}

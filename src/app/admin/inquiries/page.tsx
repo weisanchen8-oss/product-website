@@ -7,17 +7,21 @@
  * - 关键词搜索
  * - Excel 导出
  * - 重点客户星标展示
+ * - 批量更新询单状态
  */
 
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { AdminActionToast } from "@/components/admin/admin-action-toast";
+import { InquiryBulkForm } from "@/components/admin/inquiry-bulk-form";
 import { prisma } from "@/lib/prisma";
 
 type AdminInquiriesPageProps = {
   searchParams: Promise<{
     status?: string;
     q?: string;
+    success?: string;
   }>;
 };
 
@@ -65,7 +69,7 @@ function getStatusClassName(status: string) {
 export default async function AdminInquiriesPage({
   searchParams,
 }: AdminInquiriesPageProps) {
-  const { status = "all", q = "" } = await searchParams;
+  const { status = "all", q = "", success } = await searchParams;
   const keyword = q.trim();
 
   const whereClause: Prisma.InquiryWhereInput = {};
@@ -134,8 +138,47 @@ export default async function AdminInquiriesPage({
     exportParams.toString() ? `?${exportParams.toString()}` : ""
   }`;
 
+  const currentParams = new URLSearchParams();
+
+  if (status !== "all") {
+    currentParams.set("status", status);
+  }
+
+  if (keyword) {
+    currentParams.set("q", keyword);
+  }
+
+  const currentPath = `/admin/inquiries${
+    currentParams.toString() ? `?${currentParams.toString()}` : ""
+  }`;
+
+  const bulkItems = inquiries.map((item) => ({
+    id: item.id,
+    inquiryNo: item.inquiryNo,
+    contactName: item.contactName,
+    companyName: item.companyName,
+    itemCount: item.items.length,
+    status: item.status,
+    statusText: getStatusText(item.status),
+    statusClassName: getStatusClassName(item.status),
+    createdAtText: item.createdAt.toLocaleString("zh-CN"),
+    isImportant: item.user.isImportant,
+  }));
+
   return (
     <AdminLayout>
+      {success === "bulk-status-updated" ? (
+        <AdminActionToast message="已批量更新询单状态。" />
+      ) : null}
+
+      {success === "bulk-empty" ? (
+        <AdminActionToast message="请先选择需要批量处理的询单。" />
+      ) : null}
+
+      {success === "bulk-invalid-status" ? (
+        <AdminActionToast message="批量更新失败：无效的询单状态。" />
+      ) : null}
+
       <div className="admin-inquiry-header">
         <div>
           <h1>询单管理</h1>
@@ -208,84 +251,7 @@ export default async function AdminInquiriesPage({
           </div>
         </div>
 
-        {inquiries.length > 0 ? (
-          <div className="admin-inquiry-table-wrapper">
-            <table className="admin-inquiry-table">
-              <colgroup>
-                <col style={{ width: "25%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "9%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "18%" }} />
-                <col style={{ width: "8%" }} />
-              </colgroup>
-
-              <thead>
-                <tr>
-                  <th>询单编号</th>
-                  <th>联系人</th>
-                  <th>公司</th>
-                  <th>产品数量</th>
-                  <th>状态</th>
-                  <th>提交时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {inquiries.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={item.user.isImportant ? "important-inquiry-row" : ""}
-                  >
-                    <td>
-                      <strong className="inquiry-no-cell">
-                        {item.user.isImportant ? (
-                          <span className="important-star" title="重点客户">
-                            ⭐
-                          </span>
-                        ) : null}
-                        {item.inquiryNo}
-                      </strong>
-                    </td>
-
-                    <td>{item.contactName}</td>
-
-                    <td>{item.companyName}</td>
-
-                    <td className="admin-table-center">{item.items.length}</td>
-
-                    <td className="admin-table-center">
-                      <span className={getStatusClassName(item.status)}>
-                        {getStatusText(item.status)}
-                      </span>
-                    </td>
-
-                    <td>{item.createdAt.toLocaleString("zh-CN")}</td>
-
-                    <td className="admin-table-center">
-                      <Link
-                        href={`/admin/inquiries/${item.id}`}
-                        className="admin-table-action"
-                      >
-                        查看详情
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="admin-empty-state">
-            <h3>暂无符合条件的询单</h3>
-            <p>可以尝试清空搜索条件，或切换其他状态筛选。</p>
-            <Link href="/admin/inquiries" className="admin-reset-link">
-              查看全部询单
-            </Link>
-          </div>
-        )}
+        <InquiryBulkForm inquiries={bulkItems} redirectTo={currentPath} />
       </section>
     </AdminLayout>
   );

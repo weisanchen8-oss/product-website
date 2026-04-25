@@ -1,11 +1,6 @@
 /**
  * 文件作用：
  * 定义后台询单管理相关服务端动作。
- * 支持：
- * - 更新询单状态
- * - 保存内部备注
- * - 新增跟进记录
- * - 标记 / 取消重点客户
  */
 
 "use server";
@@ -13,6 +8,23 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+
+const VALID_INQUIRY_STATUSES = ["pending", "contacting", "completed", "closed"];
+
+function getSafeRedirectPath(value: FormDataEntryValue | null) {
+  const redirectTo = String(value ?? "/admin/inquiries").trim();
+
+  if (redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    return redirectTo;
+  }
+
+  return "/admin/inquiries";
+}
+
+function appendSuccessParam(path: string, success: string) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}success=${success}`;
+}
 
 export async function updateInquiryStatusAction(formData: FormData) {
   const inquiryId = Number(formData.get("inquiryId"));
@@ -22,6 +34,10 @@ export async function updateInquiryStatusAction(formData: FormData) {
 
   if (!inquiryId || Number.isNaN(inquiryId)) {
     throw new Error("无效的询单 ID。");
+  }
+
+  if (!VALID_INQUIRY_STATUSES.includes(newStatus)) {
+    redirect(`/admin/inquiries/${inquiryId}?error=invalid-status`);
   }
 
   const inquiry = await prisma.inquiry.findUnique({
@@ -55,6 +71,70 @@ export async function updateInquiryStatusAction(formData: FormData) {
   revalidatePath(`/admin/inquiries/${inquiryId}`);
 
   redirect(`/admin/inquiries/${inquiryId}?success=status-updated`);
+}
+
+export async function bulkUpdateInquiryStatusAction(formData: FormData) {
+  const inquiryIdValues = formData.getAll("inquiryIds");
+  const newStatus = String(formData.get("status") ?? "");
+  const redirectTo = getSafeRedirectPath(formData.get("redirectTo"));
+
+  const inquiryIds = inquiryIdValues
+    .map((value) => Number(value))
+    .filter((id) => id && !Number.isNaN(id));
+
+  if (inquiryIds.length === 0) {
+    redirect(appendSuccessParam(redirectTo, "bulk-empty"));
+  }
+
+  if (!VALID_INQUIRY_STATUSES.includes(newStatus)) {
+    redirect(appendSuccessParam(redirectTo, "bulk-invalid-status"));
+  }
+
+  const inquiries = await prisma.inquiry.findMany({
+    where: {
+      id: {
+        in: inquiryIds,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (inquiries.length === 0) {
+    redirect(appendSuccessParam(redirectTo, "bulk-empty"));
+  }
+
+  await prisma.inquiry.updateMany({
+    where: {
+      id: {
+        in: inquiries.map((item) => item.id),
+      },
+    },
+    data: {
+      status: newStatus,
+    },
+  });
+
+  await prisma.inquiryLog.createMany({
+    data: inquiries.map((item) => ({
+      inquiryId: item.id,
+      type: "status",
+      fromStatus: item.status,
+      toStatus: newStatus,
+      note: `批量更新状态为：${newStatus}`,
+      operatorName: "管理员",
+    })),
+  });
+
+  revalidatePath("/admin/inquiries");
+
+  inquiries.forEach((item) => {
+    revalidatePath(`/admin/inquiries/${item.id}`);
+  });
+
+  redirect(appendSuccessParam(redirectTo, "bulk-status-updated"));
 }
 
 export async function updateInquiryAdminNoteAction(formData: FormData) {
@@ -91,8 +171,7 @@ export async function updateInquiryAdminNoteAction(formData: FormData) {
 export async function addInquiryFollowAction(formData: FormData) {
   const inquiryId = Number(formData.get("inquiryId"));
   const contentValue = formData.get("content");
-  const content =
-    typeof contentValue === "string" ? contentValue.trim() : "";
+  const content = typeof contentValue === "string" ? contentValue.trim() : "";
 
   if (!inquiryId || Number.isNaN(inquiryId)) {
     throw new Error("无效的询单 ID。");
@@ -150,7 +229,9 @@ export async function toggleImportantCustomerAction(formData: FormData) {
     data: {
       inquiryId,
       type: "customer",
-      note: nextImportant ? "已将该客户标记为重点客户。" : "已取消该客户的重点标记。",
+      note: nextImportant
+        ? "已将该客户标记为重点客户。"
+        : "已取消该客户的重点标记。",
       operatorName: "管理员",
     },
   });
