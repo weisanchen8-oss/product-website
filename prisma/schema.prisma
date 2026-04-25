@@ -88,6 +88,7 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  isImportant  Boolean  @default(false)
 
   inquiries Inquiry[]
 }

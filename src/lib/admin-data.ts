@@ -15,6 +15,11 @@ export async function getAdminDashboardData() {
     categoryCount,
     inquiryCount,
     pendingInquiryCount,
+    contactingInquiryCount,
+    completedInquiryCount,
+    importantInquiryCount,
+    recentInquiries,
+    recentLogs,
     recentProducts,
     contentItems,
   ] = await Promise.all([
@@ -25,6 +30,40 @@ export async function getAdminDashboardData() {
     prisma.category.count(),
     prisma.inquiry.count(),
     prisma.inquiry.count({ where: { status: "pending" } }),
+    prisma.inquiry.count({
+      where: {
+        status: {
+          in: ["contacting", "communicating"],
+        },
+      },
+    }),
+    prisma.inquiry.count({ where: { status: "completed" } }),
+    prisma.inquiry.count({
+      where: {
+        user: {
+          isImportant: true,
+        },
+      },
+    }),
+    prisma.inquiry.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      take: 6,
+      include: {
+        user: true,
+        items: true,
+      },
+    }),
+    prisma.inquiryLog.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      take: 6,
+      include: {
+        inquiry: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    }),
     prisma.product.findMany({
       orderBy: [{ createdAt: "desc" }],
       take: 5,
@@ -48,6 +87,11 @@ export async function getAdminDashboardData() {
     categoryCount,
     inquiryCount,
     pendingInquiryCount,
+    contactingInquiryCount,
+    completedInquiryCount,
+    importantInquiryCount,
+    recentInquiries,
+    recentLogs,
     recentProducts,
     contentItems,
   };

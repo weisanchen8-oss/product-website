@@ -3,9 +3,11 @@
  * 后台询单导出 Excel 接口。
  * 支持：
  * - 与询单列表页一致的状态筛选
+ * - 重点询单筛选
  * - 兼容 contacting / communicating 两种“沟通中”旧状态
  * - 关键词搜索
  * - 导出中文状态
+ * - 导出重点客户标记
  */
 
 import { NextRequest } from "next/server";
@@ -32,7 +34,11 @@ function getStatusText(status: string) {
 function buildInquiryWhere(status: string, keyword: string) {
   const where: Prisma.InquiryWhereInput = {};
 
-  if (status !== "all") {
+  if (status === "important") {
+    where.user = {
+      isImportant: true,
+    };
+  } else if (status !== "all") {
     if (status === "contacting") {
       where.status = {
         in: ["contacting", "communicating"],
@@ -85,12 +91,14 @@ export async function GET(request: NextRequest) {
     where: buildInquiryWhere(status, keyword),
     orderBy: [{ createdAt: "desc" }],
     include: {
+      user: true,
       items: true,
     },
   });
 
   const rows = inquiries.map((inquiry) => ({
     询单编号: inquiry.inquiryNo,
+    是否重点客户: inquiry.user.isImportant ? "是" : "否",
     联系人: inquiry.contactName,
     公司名称: inquiry.companyName,
     电话: inquiry.phone,
@@ -111,6 +119,7 @@ export async function GET(request: NextRequest) {
 
   worksheet["!cols"] = [
     { wch: 22 },
+    { wch: 14 },
     { wch: 14 },
     { wch: 24 },
     { wch: 18 },

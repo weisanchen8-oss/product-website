@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台询单详情页。
- * 展示真实询单信息、产品清单、状态日志，并支持更新询单状态和内部备注。
+ * 展示询单信息、产品清单、状态更新、内部备注、跟进记录和重点客户标记。
  */
 
 import Link from "next/link";
@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import {
   updateInquiryStatusAction,
   updateInquiryAdminNoteAction,
+  addInquiryFollowAction,
+  toggleImportantCustomerAction,
 } from "@/app/admin/inquiries/actions";
 
 type AdminInquiryDetailPageProps = {
@@ -56,6 +58,14 @@ function getLogTitle(log: {
 
   if (log.type === "note") {
     return "更新内部备注";
+  }
+
+  if (log.type === "follow") {
+    return "新增跟进记录";
+  }
+
+  if (log.type === "customer") {
+    return "客户标记变更";
   }
 
   if (log.status) {
@@ -105,14 +115,30 @@ export default async function AdminInquiryDetailPage({
         <AdminActionToast message="内部备注已保存。" />
       ) : null}
 
+      {success === "follow-added" ? (
+        <AdminActionToast message="跟进记录已添加。" />
+      ) : null}
+
+      {success === "customer-important" ? (
+        <AdminActionToast message="已标记为重点客户。" />
+      ) : null}
+
+      {success === "customer-normal" ? (
+        <AdminActionToast message="已取消重点客户标记。" />
+      ) : null}
+
       {error === "invalid-status" ? (
         <AdminActionToast message="无效的询单状态。" />
+      ) : null}
+
+      {error === "follow-empty" ? (
+        <AdminActionToast message="跟进内容不能为空。" />
       ) : null}
 
       <div className="admin-page-header">
         <div>
           <h1>询单详情</h1>
-          <p>查看询单信息、产品清单，并更新处理状态。</p>
+          <p>查看询单信息、产品清单，并持续记录客户跟进过程。</p>
         </div>
 
         <Link href="/admin/inquiries" className="secondary-button">
@@ -123,7 +149,15 @@ export default async function AdminInquiryDetailPage({
       <div className="admin-detail-layout">
         <main className="admin-detail-main">
           <section className="admin-form-card admin-detail-section">
-            <h2>询单基本信息</h2>
+            <div className="admin-section-title-row">
+              <h2>询单基本信息</h2>
+
+              {inquiry.user.isImportant ? (
+                <span className="important-customer-badge">⭐ 重点客户</span>
+              ) : (
+                <span className="normal-customer-badge">普通客户</span>
+              )}
+            </div>
 
             <div className="admin-detail-grid">
               <div>
@@ -192,6 +226,37 @@ export default async function AdminInquiryDetailPage({
         </main>
 
         <aside className="admin-detail-sidebar">
+          <section className="admin-form-card admin-detail-section important-customer-card">
+            <h2>客户标记</h2>
+
+            <p className="important-customer-desc">
+              {inquiry.user.isImportant
+                ? "该客户已被标记为重点客户，其后续询单会在列表中显示星标。"
+                : "将该客户标记为重点客户后，其后续询单会在列表中显示星标。"}
+            </p>
+
+            <form action={toggleImportantCustomerAction}>
+              <input type="hidden" name="inquiryId" value={inquiry.id} />
+              <input type="hidden" name="userId" value={inquiry.userId} />
+              <input
+                type="hidden"
+                name="nextImportant"
+                value={inquiry.user.isImportant ? "false" : "true"}
+              />
+
+              <button
+                type="submit"
+                className={
+                  inquiry.user.isImportant
+                    ? "secondary-button important-toggle-button"
+                    : "primary-button important-toggle-button"
+                }
+              >
+                {inquiry.user.isImportant ? "取消重点客户" : "设为重点客户"}
+              </button>
+            </form>
+          </section>
+
           <section className="admin-form-card admin-detail-section">
             <h2>更新询单状态</h2>
 
@@ -224,6 +289,27 @@ export default async function AdminInquiryDetailPage({
           </section>
 
           <section className="admin-form-card admin-detail-section">
+            <h2>添加跟进记录</h2>
+
+            <form action={addInquiryFollowAction} className="admin-follow-form">
+              <input type="hidden" name="inquiryId" value={inquiry.id} />
+
+              <div className="admin-form-group">
+                <label>跟进内容</label>
+                <textarea
+                  name="content"
+                  rows={4}
+                  placeholder="例如：已电话联系客户，客户希望补充 FOB 报价。"
+                />
+              </div>
+
+              <button type="submit" className="primary-button admin-follow-submit">
+                添加记录
+              </button>
+            </form>
+          </section>
+
+          <section className="admin-form-card admin-detail-section">
             <h2>内部备注</h2>
 
             <form
@@ -249,12 +335,15 @@ export default async function AdminInquiryDetailPage({
           </section>
 
           <section className="admin-form-card admin-detail-section">
-            <h2>操作记录</h2>
+            <h2>跟进与操作记录</h2>
 
             <div className="admin-timeline">
               {inquiry.logs.length > 0 ? (
                 inquiry.logs.map((log) => (
-                  <div key={log.id} className="admin-timeline-item">
+                  <div
+                    key={log.id}
+                    className={`admin-timeline-item admin-timeline-${log.type}`}
+                  >
                     <div className="admin-timeline-dot" />
 
                     <div className="admin-timeline-content">

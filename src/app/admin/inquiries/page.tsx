@@ -1,7 +1,12 @@
 /**
  * 文件作用：
  * 后台询单管理列表页。
- * 支持状态筛选、关键词搜索、Excel 导出，并优化表格自适应布局。
+ * 支持：
+ * - 状态筛选
+ * - 重点询单筛选
+ * - 关键词搜索
+ * - Excel 导出
+ * - 重点客户星标展示
  */
 
 import Link from "next/link";
@@ -18,6 +23,7 @@ type AdminInquiriesPageProps = {
 
 const STATUS_OPTIONS = [
   { value: "all", label: "全部" },
+  { value: "important", label: "重点询单" },
   { value: "pending", label: "待处理" },
   { value: "contacting", label: "沟通中" },
   { value: "completed", label: "已完成" },
@@ -64,7 +70,11 @@ export default async function AdminInquiriesPage({
 
   const whereClause: Prisma.InquiryWhereInput = {};
 
-  if (status !== "all") {
+  if (status === "important") {
+    whereClause.user = {
+      isImportant: true,
+    };
+  } else if (status !== "all") {
     whereClause.status =
       status === "contacting"
         ? { in: ["contacting", "communicating"] }
@@ -105,6 +115,7 @@ export default async function AdminInquiriesPage({
     where: whereClause,
     orderBy: [{ createdAt: "desc" }],
     include: {
+      user: true,
       items: true,
     },
   });
@@ -128,7 +139,7 @@ export default async function AdminInquiriesPage({
       <div className="admin-inquiry-header">
         <div>
           <h1>询单管理</h1>
-          <p>查看客户提交的询单，按状态筛选，并跟进处理进度。</p>
+          <p>查看客户提交的询单，按状态和重点客户筛选，并跟进处理进度。</p>
         </div>
 
         <Link href={exportHref} className="admin-export-button">
@@ -173,10 +184,15 @@ export default async function AdminInquiriesPage({
                 href={href}
                 className={
                   status === option.value
-                    ? "admin-filter-pill admin-filter-pill-active"
-                    : "admin-filter-pill"
+                    ? option.value === "important"
+                      ? "admin-filter-pill admin-filter-pill-important admin-filter-pill-active"
+                      : "admin-filter-pill admin-filter-pill-active"
+                    : option.value === "important"
+                      ? "admin-filter-pill admin-filter-pill-important"
+                      : "admin-filter-pill"
                 }
               >
+                {option.value === "important" ? "⭐ " : ""}
                 {option.label}
               </Link>
             );
@@ -196,10 +212,10 @@ export default async function AdminInquiriesPage({
           <div className="admin-inquiry-table-wrapper">
             <table className="admin-inquiry-table">
               <colgroup>
-                <col style={{ width: "24%" }} />
+                <col style={{ width: "25%" }} />
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "16%" }} />
-                <col style={{ width: "10%" }} />
+                <col style={{ width: "9%" }} />
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "18%" }} />
                 <col style={{ width: "8%" }} />
@@ -219,19 +235,35 @@ export default async function AdminInquiriesPage({
 
               <tbody>
                 {inquiries.map((item) => (
-                  <tr key={item.id}>
+                  <tr
+                    key={item.id}
+                    className={item.user.isImportant ? "important-inquiry-row" : ""}
+                  >
                     <td>
-                      <strong>{item.inquiryNo}</strong>
+                      <strong className="inquiry-no-cell">
+                        {item.user.isImportant ? (
+                          <span className="important-star" title="重点客户">
+                            ⭐
+                          </span>
+                        ) : null}
+                        {item.inquiryNo}
+                      </strong>
                     </td>
+
                     <td>{item.contactName}</td>
+
                     <td>{item.companyName}</td>
+
                     <td className="admin-table-center">{item.items.length}</td>
+
                     <td className="admin-table-center">
                       <span className={getStatusClassName(item.status)}>
                         {getStatusText(item.status)}
                       </span>
                     </td>
+
                     <td>{item.createdAt.toLocaleString("zh-CN")}</td>
+
                     <td className="admin-table-center">
                       <Link
                         href={`/admin/inquiries/${item.id}`}
