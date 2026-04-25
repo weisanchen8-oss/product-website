@@ -1,5 +1,7 @@
 /**
- * 询单列表页（优化版）
+ * 文件作用：
+ * 后台询单管理列表页。
+ * 支持状态筛选、关键词搜索、Excel 导出，并优化表格自适应布局。
  */
 
 import Link from "next/link";
@@ -7,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { prisma } from "@/lib/prisma";
 
-type Props = {
+type AdminInquiriesPageProps = {
   searchParams: Promise<{
     status?: string;
     q?: string;
@@ -34,136 +36,224 @@ function getStatusText(status: string) {
     case "closed":
       return "已关闭";
     default:
-      return status;
+      return status || "未知状态";
   }
 }
 
 function getStatusClassName(status: string) {
-  return `admin-status-badge status-${status}`;
+  switch (status) {
+    case "pending":
+      return "admin-status-badge admin-status-pending";
+    case "contacting":
+    case "communicating":
+      return "admin-status-badge admin-status-contacting";
+    case "completed":
+      return "admin-status-badge admin-status-completed";
+    case "closed":
+      return "admin-status-badge admin-status-closed";
+    default:
+      return "admin-status-badge";
+  }
 }
 
-export default async function Page({ searchParams }: Props) {
+export default async function AdminInquiriesPage({
+  searchParams,
+}: AdminInquiriesPageProps) {
   const { status = "all", q = "" } = await searchParams;
   const keyword = q.trim();
 
-  const where: Prisma.InquiryWhereInput = {};
+  const whereClause: Prisma.InquiryWhereInput = {};
 
   if (status !== "all") {
-    where.status =
+    whereClause.status =
       status === "contacting"
         ? { in: ["contacting", "communicating"] }
         : status;
   }
 
   if (keyword) {
-    where.OR = [
+    whereClause.OR = [
       { inquiryNo: { contains: keyword } },
       { contactName: { contains: keyword } },
       { companyName: { contains: keyword } },
+      { phone: { contains: keyword } },
+      { email: { contains: keyword } },
+      {
+        items: {
+          some: {
+            productNameSnapshot: {
+              contains: keyword,
+            },
+          },
+        },
+      },
+      {
+        items: {
+          some: {
+            product: {
+              keywords: {
+                contains: keyword,
+              },
+            },
+          },
+        },
+      },
     ];
   }
 
   const inquiries = await prisma.inquiry.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: { items: true },
+    where: whereClause,
+    orderBy: [{ createdAt: "desc" }],
+    include: {
+      items: true,
+    },
   });
+
+  const exportParams = new URLSearchParams();
+
+  if (status !== "all") {
+    exportParams.set("status", status);
+  }
+
+  if (keyword) {
+    exportParams.set("q", keyword);
+  }
+
+  const exportHref = `/admin/inquiries/export${
+    exportParams.toString() ? `?${exportParams.toString()}` : ""
+  }`;
 
   return (
     <AdminLayout>
-      <div className="admin-page-header">
-        <h1>询单管理</h1>
+      <div className="admin-inquiry-header">
+        <div>
+          <h1>询单管理</h1>
+          <p>查看客户提交的询单，按状态筛选，并跟进处理进度。</p>
+        </div>
+
+        <Link href={exportHref} className="admin-export-button">
+          导出 Excel
+        </Link>
       </div>
 
-      {/* 搜索区 */}
-      <section className="admin-form-card admin-toolbar-compact">
-        <form className="admin-search-row">
+      <section className="admin-inquiry-toolbar">
+        <form className="admin-inquiry-search-form">
           <input
             name="q"
+            type="search"
             defaultValue={keyword}
-            placeholder="搜索询单编号、联系人、公司"
+            placeholder="搜索询单编号、联系人、公司、电话、邮箱或产品关键词"
           />
 
           <input type="hidden" name="status" value={status} />
 
-          <button className="primary-button">搜索</button>
-          <Link href="/admin/inquiries" className="secondary-button">
+          <button type="submit" className="admin-search-button">
+            搜索
+          </button>
+
+          <Link href="/admin/inquiries" className="admin-reset-link">
             重置
           </Link>
         </form>
 
-        <div className="admin-filter-row">
-          {STATUS_OPTIONS.map((opt) => {
+        <div className="admin-status-filter">
+          {STATUS_OPTIONS.map((option) => {
             const href =
-              opt.value === "all"
-                ? "/admin/inquiries"
-                : `/admin/inquiries?status=${opt.value}`;
+              option.value === "all"
+                ? keyword
+                  ? `/admin/inquiries?q=${encodeURIComponent(keyword)}`
+                  : "/admin/inquiries"
+                : `/admin/inquiries?status=${option.value}${
+                    keyword ? `&q=${encodeURIComponent(keyword)}` : ""
+                  }`;
 
             return (
               <Link
-                key={opt.value}
+                key={option.value}
                 href={href}
                 className={
-                  status === opt.value
-                    ? "filter-pill active"
-                    : "filter-pill"
+                  status === option.value
+                    ? "admin-filter-pill admin-filter-pill-active"
+                    : "admin-filter-pill"
                 }
               >
-                {opt.label}
+                {option.label}
               </Link>
             );
           })}
         </div>
       </section>
 
-      {/* 列表区 */}
-      <section className="admin-form-card admin-table-card compact">
-        <div className="table-header">
-          <h2>询单列表</h2>
-          <span>{inquiries.length} 条记录</span>
+      <section className="admin-inquiry-table-card">
+        <div className="admin-inquiry-table-header">
+          <div>
+            <h2>询单列表</h2>
+            <p>共 {inquiries.length} 条询单记录</p>
+          </div>
         </div>
 
-        <table className="admin-table full-width">
-          <thead>
-            <tr>
-              <th className="col-id">询单编号</th>
-              <th className="col-name">联系人</th>
-              <th className="col-company">公司</th>
-              <th className="col-count">数量</th>
-              <th className="col-status">状态</th>
-              <th className="col-time">提交时间</th>
-              <th className="col-action">操作</th>
-            </tr>
-          </thead>
+        {inquiries.length > 0 ? (
+          <div className="admin-inquiry-table-wrapper">
+            <table className="admin-inquiry-table">
+              <colgroup>
+                <col style={{ width: "24%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "8%" }} />
+              </colgroup>
 
-          <tbody>
-            {inquiries.map((item) => (
-              <tr key={item.id}>
-                <td className="col-id">{item.inquiryNo}</td>
-                <td>{item.contactName}</td>
-                <td>{item.companyName}</td>
-                <td className="center">{item.items.length}</td>
+              <thead>
+                <tr>
+                  <th>询单编号</th>
+                  <th>联系人</th>
+                  <th>公司</th>
+                  <th>产品数量</th>
+                  <th>状态</th>
+                  <th>提交时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
 
-                <td>
-                  <span className={getStatusClassName(item.status)}>
-                    {getStatusText(item.status)}
-                  </span>
-                </td>
-
-                <td>{item.createdAt.toLocaleString("zh-CN")}</td>
-
-                <td>
-                  <Link
-                    href={`/admin/inquiries/${item.id}`}
-                    className="action-btn"
-                  >
-                    查看
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              <tbody>
+                {inquiries.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <strong>{item.inquiryNo}</strong>
+                    </td>
+                    <td>{item.contactName}</td>
+                    <td>{item.companyName}</td>
+                    <td className="admin-table-center">{item.items.length}</td>
+                    <td className="admin-table-center">
+                      <span className={getStatusClassName(item.status)}>
+                        {getStatusText(item.status)}
+                      </span>
+                    </td>
+                    <td>{item.createdAt.toLocaleString("zh-CN")}</td>
+                    <td className="admin-table-center">
+                      <Link
+                        href={`/admin/inquiries/${item.id}`}
+                        className="admin-table-action"
+                      >
+                        查看详情
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="admin-empty-state">
+            <h3>暂无符合条件的询单</h3>
+            <p>可以尝试清空搜索条件，或切换其他状态筛选。</p>
+            <Link href="/admin/inquiries" className="admin-reset-link">
+              查看全部询单
+            </Link>
+          </div>
+        )}
       </section>
     </AdminLayout>
   );

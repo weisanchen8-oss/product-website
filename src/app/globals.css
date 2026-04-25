@@ -2738,3 +2738,242 @@ input {
 .status-contacting { background: #eff6ff; }
 .status-completed { background: #ecfdf5; }
 .status-closed { background: #f3f4f6; }
+
+.admin-inquiry-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.admin-inquiry-header h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  color: #020617;
+}
+
+.admin-inquiry-header p {
+  margin-top: 10px;
+  color: #64748b;
+}
+
+.admin-export-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  min-width: 136px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-inquiry-toolbar {
+  margin-bottom: 16px;
+  padding: 24px 28px;
+  border-radius: 24px;
+  background: #ffffff;
+}
+
+.admin-inquiry-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 56px;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-inquiry-search-form input[type="search"] {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.admin-search-button {
+  height: 48px;
+  border: 0;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-reset-link {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-status-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.admin-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-filter-pill-active {
+  background: #111827;
+  color: #ffffff;
+}
+
+.admin-inquiry-table-card {
+  padding: 32px 28px;
+  border-radius: 24px;
+  background: #ffffff;
+}
+
+.admin-inquiry-table-header {
+  margin-bottom: 22px;
+}
+
+.admin-inquiry-table-header h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: #020617;
+}
+
+.admin-inquiry-table-header p {
+  margin-top: 10px;
+  color: #64748b;
+}
+
+.admin-inquiry-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-inquiry-table {
+  width: 100%;
+  min-width: 980px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.admin-inquiry-table th,
+.admin-inquiry-table td {
+  padding: 18px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #111827;
+}
+
+.admin-inquiry-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.admin-inquiry-table strong {
+  font-weight: 800;
+}
+
+.admin-table-center {
+  text-align: center !important;
+}
+
+.admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-status-pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.admin-status-contacting {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-status-completed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.admin-status-closed {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.admin-table-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 18px;
+  background: #f9fafb;
+}
+
+@media (max-width: 768px) {
+  .admin-inquiry-header {
+    flex-direction: column;
+  }
+
+  .admin-export-button {
+    width: 100%;
+  }
+
+  .admin-inquiry-search-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-search-button {
+    width: 100%;
+  }
+
+  .admin-inquiry-table {
+    min-width: 900px;
+  }
+}
