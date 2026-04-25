@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台询单详情页。
- * 当前版本展示真实询单信息、产品清单、状态日志，并支持更新询单状态。
+ * 展示真实询单信息、产品清单、状态日志，并支持更新询单状态和内部备注。
  */
 
 import Link from "next/link";
@@ -28,15 +28,41 @@ function getInquiryStatusText(status: string) {
   switch (status) {
     case "pending":
       return "待处理";
+    case "contacting":
     case "communicating":
       return "沟通中";
     case "completed":
       return "已完成";
     case "closed":
       return "已关闭";
+    case "note_updated":
+      return "内部备注更新";
     default:
-      return status;
+      return status || "未知状态";
   }
+}
+
+function getLogTitle(log: {
+  status: string | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  type: string;
+}) {
+  if (log.type === "status" && log.fromStatus && log.toStatus) {
+    return `${getInquiryStatusText(log.fromStatus)} → ${getInquiryStatusText(
+      log.toStatus
+    )}`;
+  }
+
+  if (log.type === "note") {
+    return "更新内部备注";
+  }
+
+  if (log.status) {
+    return getInquiryStatusText(log.status);
+  }
+
+  return "操作记录";
 }
 
 export default async function AdminInquiryDetailPage({
@@ -45,6 +71,7 @@ export default async function AdminInquiryDetailPage({
 }: AdminInquiryDetailPageProps) {
   const { id } = await params;
   const { success, error } = await searchParams;
+
   const inquiryId = Number(id);
 
   if (!inquiryId || Number.isNaN(inquiryId)) {
@@ -57,7 +84,9 @@ export default async function AdminInquiryDetailPage({
       user: true,
       items: true,
       logs: {
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          createdAt: "desc",
+        },
       },
     },
   });
@@ -69,7 +98,7 @@ export default async function AdminInquiryDetailPage({
   return (
     <AdminLayout>
       {success === "status-updated" ? (
-        <AdminActionToast message="询单状态更新成功。" />
+        <AdminActionToast message="询单状态已更新。" />
       ) : null}
 
       {success === "note-updated" ? (
@@ -77,7 +106,7 @@ export default async function AdminInquiryDetailPage({
       ) : null}
 
       {error === "invalid-status" ? (
-        <AdminActionToast message="状态更新失败：请选择有效状态。" />
+        <AdminActionToast message="无效的询单状态。" />
       ) : null}
 
       <div className="admin-page-header">
@@ -86,118 +115,173 @@ export default async function AdminInquiryDetailPage({
           <p>查看询单信息、产品清单，并更新处理状态。</p>
         </div>
 
-        <Link href="/admin/inquiries" className="ghost-button inline-button-link">
+        <Link href="/admin/inquiries" className="secondary-button">
           返回询单管理
         </Link>
       </div>
 
-      <div className="admin-detail-grid">
-        <div className="admin-form-card">
-          <h2>询单基本信息</h2>
+      <div className="admin-detail-layout">
+        <main className="admin-detail-main">
+          <section className="admin-form-card admin-detail-section">
+            <h2>询单基本信息</h2>
 
-          <div className="admin-detail-list">
-            <p><strong>询单编号：</strong>{inquiry.inquiryNo}</p>
-            <p><strong>当前状态：</strong>{getInquiryStatusText(inquiry.status)}</p>
-            <p><strong>提交时间：</strong>{inquiry.createdAt.toLocaleString("zh-CN")}</p>
-            <p><strong>联系人：</strong>{inquiry.contactName}</p>
-            <p><strong>公司名称：</strong>{inquiry.companyName}</p>
-            <p><strong>联系电话：</strong>{inquiry.phone}</p>
-            <p><strong>电子邮箱：</strong>{inquiry.email}</p>
-            <p><strong>所在地区：</strong>{inquiry.region || "未填写"}</p>
-            <p><strong>备注说明：</strong>{inquiry.remark || "未填写"}</p>
-          </div>
-        </div>
-
-        <div className="admin-form-card admin-detail-section">
-         <h2>内部备注</h2>
-
-          <form action={updateInquiryAdminNoteAction} className="admin-note-form">
-            <input type="hidden" name="inquiryId" value={inquiry.id} />
-
-            <label className="admin-note-field">
-              <span>后台内部备注</span>
-
-              <textarea
-                name="adminNote"
-                rows={6}
-                defaultValue={inquiry.adminNote || ""}
-                placeholder="例如：客户已电话沟通，重点关注交期和批发价格。"
-              />
-            </label>
-
-            <button type="submit" className="primary-button admin-note-submit">
-              保存内部备注
-            </button>
-          </form>
-        </div>
-
-
-        <div className="admin-form-card admin-detail-section">
-          <h2>更新询单状态</h2>
-
-          <form action={updateInquiryStatusAction} className="admin-status-form">
-            <input type="hidden" name="inquiryId" value={inquiry.id} />
-
-            {/* 状态选择 */}
-            <div className="admin-form-group">
-              <label>处理状态</label>
-              <select name="status" defaultValue={inquiry.status}>
-                <option value="pending">待处理</option>
-                <option value="contacting">沟通中</option>
-                <option value="completed">已完成</option>
-                <option value="closed">已关闭</option>
-              </select>
-            </div>
-
-            {/* 处理说明 */}
-            <div className="admin-form-group">
-              <label>处理说明（可选）</label>
-              <textarea
-                name="note"
-                rows={4}
-                placeholder="例如：已联系客户，等待报价确认。"
-              />
-            </div>
-        
-            <button type="submit" className="primary-button admin-status-submit">
-              更新状态
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <div className="admin-form-card admin-detail-section">
-        <h2>产品清单</h2>
-
-        <div className="admin-detail-item-list">
-          {inquiry.items.map((item) => (
-            <div key={item.id} className="admin-detail-item">
+            <div className="admin-detail-grid">
               <div>
-                <strong>{item.productNameSnapshot}</strong>
-                <p>单价/价格：{item.priceSnapshot}</p>
+                <span>询单编号</span>
+                <strong>{inquiry.inquiryNo}</strong>
               </div>
-              <span>数量：{item.quantity}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="admin-form-card admin-detail-section">
-        <h2>状态记录</h2>
+              <div>
+                <span>当前状态</span>
+                <strong>{getInquiryStatusText(inquiry.status)}</strong>
+              </div>
 
-        <div className="admin-detail-log-list">
-          {inquiry.logs.map((log) => (
-            <div key={log.id} className="admin-detail-log-item">
-              <strong>
-                {log.status ? getInquiryStatusText(log.status) : "状态更新"}
-              </strong>
-              <p>{log.note || "无备注"}</p>
-              <span>
-                {log.operatorName || "系统"} · {log.createdAt.toLocaleString("zh-CN")}
-              </span>
+              <div>
+                <span>提交时间</span>
+                <strong>{inquiry.createdAt.toLocaleString("zh-CN")}</strong>
+              </div>
+
+              <div>
+                <span>联系人</span>
+                <strong>{inquiry.contactName}</strong>
+              </div>
+
+              <div>
+                <span>公司名称</span>
+                <strong>{inquiry.companyName}</strong>
+              </div>
+
+              <div>
+                <span>联系电话</span>
+                <strong>{inquiry.phone}</strong>
+              </div>
+
+              <div>
+                <span>电子邮箱</span>
+                <strong>{inquiry.email}</strong>
+              </div>
+
+              <div>
+                <span>所在地区</span>
+                <strong>{inquiry.region || "未填写"}</strong>
+              </div>
+
+              <div className="admin-detail-grid-full">
+                <span>客户备注</span>
+                <strong>{inquiry.remark || "未填写"}</strong>
+              </div>
             </div>
-          ))}
-        </div>
+          </section>
+
+          <section className="admin-form-card admin-detail-section">
+            <h2>产品清单</h2>
+
+            <div className="admin-detail-item-list">
+              {inquiry.items.map((item) => (
+                <div key={item.id} className="admin-detail-item">
+                  <div>
+                    <strong>{item.productNameSnapshot}</strong>
+                    <p>单价/价格：{item.priceSnapshot}</p>
+                  </div>
+
+                  <span>数量：{item.quantity}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        </main>
+
+        <aside className="admin-detail-sidebar">
+          <section className="admin-form-card admin-detail-section">
+            <h2>更新询单状态</h2>
+
+            <form action={updateInquiryStatusAction} className="admin-status-form">
+              <input type="hidden" name="inquiryId" value={inquiry.id} />
+
+              <div className="admin-form-group">
+                <label>处理状态</label>
+                <select name="status" defaultValue={inquiry.status}>
+                  <option value="pending">待处理</option>
+                  <option value="contacting">沟通中</option>
+                  <option value="completed">已完成</option>
+                  <option value="closed">已关闭</option>
+                </select>
+              </div>
+
+              <div className="admin-form-group">
+                <label>处理说明（可选）</label>
+                <textarea
+                  name="note"
+                  rows={4}
+                  placeholder="例如：已联系客户，等待报价确认。"
+                />
+              </div>
+
+              <button type="submit" className="primary-button admin-status-submit">
+                更新状态
+              </button>
+            </form>
+          </section>
+
+          <section className="admin-form-card admin-detail-section">
+            <h2>内部备注</h2>
+
+            <form
+              action={updateInquiryAdminNoteAction}
+              className="admin-note-form"
+            >
+              <input type="hidden" name="inquiryId" value={inquiry.id} />
+
+              <div className="admin-form-group">
+                <label>后台内部备注</label>
+                <textarea
+                  name="adminNote"
+                  rows={6}
+                  defaultValue={inquiry.adminNote || ""}
+                  placeholder="例如：客户已电话沟通，重点关注交期和批发价格。"
+                />
+              </div>
+
+              <button type="submit" className="primary-button admin-note-submit">
+                保存内部备注
+              </button>
+            </form>
+          </section>
+
+          <section className="admin-form-card admin-detail-section">
+            <h2>操作记录</h2>
+
+            <div className="admin-timeline">
+              {inquiry.logs.length > 0 ? (
+                inquiry.logs.map((log) => (
+                  <div key={log.id} className="admin-timeline-item">
+                    <div className="admin-timeline-dot" />
+
+                    <div className="admin-timeline-content">
+                      <strong>
+                        {getLogTitle({
+                          status: log.status,
+                          fromStatus: log.fromStatus,
+                          toStatus: log.toStatus,
+                          type: log.type,
+                        })}
+                      </strong>
+
+                      <p>{log.note || "无备注"}</p>
+
+                      <span>
+                        {log.operatorName || "系统"} ·{" "}
+                        {log.createdAt.toLocaleString("zh-CN")}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="admin-empty-text">暂无操作记录</p>
+              )}
+            </div>
+          </section>
+        </aside>
       </div>
     </AdminLayout>
   );
