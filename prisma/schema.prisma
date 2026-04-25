@@ -127,7 +127,7 @@ model Inquiry {
 model InquiryItem {
   id                  Int      @id @default(autoincrement())
   inquiryId           Int
-  productId           Int
+  productId           Int?
   productNameSnapshot String
   priceSnapshot       String
   quantity            Int
@@ -135,7 +135,7 @@ model InquiryItem {
   createdAt           DateTime @default(now())
 
   inquiry Inquiry @relation(fields: [inquiryId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
 
 model InquiryLog {

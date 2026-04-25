@@ -1,16 +1,22 @@
 /**
  * 文件作用：
  * 定义后台产品管理相关的服务端写入动作。
- * 当前阶段负责新增产品和编辑产品，并支持 slug 自动生成、推荐/热销配置和成功反馈。
+ * 支持：
+ * - 新增产品
+ * - 编辑产品
+ * - 上传产品图片
+ * - 设置封面图
+ * - 删除产品图片
+ * - 批量上架 / 下架 / 推荐 / 取消推荐 / 热销 / 取消热销 / 删除
  */
 
 "use server";
 
+import fs from "node:fs/promises";
+import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import fs from "node:fs/promises";
-import path from "node:path";
 
 function normalizeSlug(value: string) {
   return value
@@ -69,7 +75,6 @@ function getNumberOrZero(value: FormDataEntryValue | null) {
 function buildSpecsJsonFromFormData(formData: FormData) {
   const keys = formData.getAll("specKey");
   const values = formData.getAll("specValue");
-
   const specs: Record<string, string> = {};
 
   keys.forEach((keyItem, index) => {
@@ -102,7 +107,6 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   const fullDescValue = formData.get("fullDesc");
   const keywordsValue = formData.get("keywords");
   const priceTextValue = formData.get("priceText");
-
   const salesCountValue = formData.get("salesCount");
   const featuredSortValue = formData.get("featuredSort");
   const manualHotSortValue = formData.get("manualHotSort");
@@ -113,11 +117,14 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   const name = typeof nameValue === "string" ? nameValue.trim() : "";
   const slugRaw = typeof slugValue === "string" ? slugValue.trim() : "";
   const categoryId = Number(categoryIdValue);
-  const shortDesc = typeof shortDescValue === "string" ? shortDescValue.trim() : "";
-  const fullDesc = typeof fullDescValue === "string" ? fullDescValue.trim() : "";
-  const keywords = typeof keywordsValue === "string" ? keywordsValue.trim() : "";
-  const priceText = typeof priceTextValue === "string" ? priceTextValue.trim() : "";
-
+  const shortDesc =
+    typeof shortDescValue === "string" ? shortDescValue.trim() : "";
+  const fullDesc =
+    typeof fullDescValue === "string" ? fullDescValue.trim() : "";
+  const keywords =
+    typeof keywordsValue === "string" ? keywordsValue.trim() : "";
+  const priceText =
+    typeof priceTextValue === "string" ? priceTextValue.trim() : "";
   const salesCount = getNumberOrZero(salesCountValue);
   const isActive = isActiveValue === "on";
   const isFeatured = isFeaturedValue === "on";
@@ -144,12 +151,14 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   const slug = await getUniqueProductSlug(baseSlug, currentId);
 
   let featuredSort = 0;
+
   if (isFeatured) {
     const manualSort = getNumberOrZero(featuredSortValue);
     featuredSort = manualSort || (await getNextFeaturedSort());
   }
 
   let manualHotSort = 0;
+
   if (isManualHot) {
     const manualSort = getNumberOrZero(manualHotSortValue);
     manualHotSort = manualSort || (await getNextManualHotSort());
@@ -187,6 +196,35 @@ function getUpdateErrorRedirect(id: number, error: unknown) {
   }
 
   return `/admin/products/${id}?error=update-failed`;
+}
+
+function getSafeRedirectPath(value: FormDataEntryValue | null) {
+  const redirectTo = String(value ?? "/admin/products").trim();
+
+  if (redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    return redirectTo;
+  }
+
+  return "/admin/products";
+}
+
+function appendSuccessParam(pathValue: string, success: string) {
+  const separator = pathValue.includes("?") ? "&" : "?";
+  return `${pathValue}${separator}success=${success}`;
+}
+
+async function deleteProductUploadFile(imageUrl: string) {
+  if (!imageUrl.startsWith("/uploads/products/")) {
+    return;
+  }
+
+  const filePath = path.join(process.cwd(), "public", imageUrl);
+
+  try {
+    await fs.unlink(filePath);
+  } catch {
+    // 文件可能已不存在，不影响数据库删除结果
+  }
 }
 
 export async function createProductAction(formData: FormData) {
@@ -252,7 +290,6 @@ export async function updateProductAction(formData: FormData) {
 export async function uploadProductImageAction(formData: FormData) {
   const productIdValue = formData.get("productId");
   const fileValue = formData.get("image");
-
   const productId = Number(productIdValue);
 
   if (!productId || Number.isNaN(productId)) {
@@ -387,15 +424,7 @@ export async function deleteProductImageAction(formData: FormData) {
     where: { id: imageId },
   });
 
-  if (imageUrl.startsWith("/uploads/products/")) {
-    const filePath = path.join(process.cwd(), "public", imageUrl);
-
-    try {
-      await fs.unlink(filePath);
-    } catch {
-      // 文件可能已不存在，不影响数据库删除结果
-    }
-  }
+  await deleteProductUploadFile(imageUrl);
 
   if (wasCover) {
     const nextImage = await prisma.productImage.findFirst({
@@ -418,4 +447,166 @@ export async function deleteProductImageAction(formData: FormData) {
   revalidatePath("/");
 
   redirect(`/admin/products/${productId}?success=image-deleted`);
+}
+
+export async function bulkManageProductsAction(formData: FormData) {
+  const productIdValues = formData.getAll("productIds");
+  const bulkAction = String(formData.get("bulkAction") ?? "");
+  const redirectTo = getSafeRedirectPath(formData.get("redirectTo"));
+
+  const productIds = productIdValues
+    .map((value) => Number(value))
+    .filter((id) => id && !Number.isNaN(id));
+
+  if (productIds.length === 0) {
+    redirect(appendSuccessParam(redirectTo, "bulk-empty"));
+  }
+
+  if (
+    ![
+      "activate",
+      "deactivate",
+      "feature",
+      "unfeature",
+      "hot",
+      "unhot",
+      "delete",
+    ].includes(bulkAction)
+  ) {
+    redirect(appendSuccessParam(redirectTo, "bulk-invalid-action"));
+  }
+
+  if (bulkAction === "activate") {
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { isActive: true },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  }
+
+  if (bulkAction === "deactivate") {
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { isActive: false },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  }
+
+  if (bulkAction === "feature") {
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { isFeatured: true },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  }
+
+  if (bulkAction === "unfeature") {
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: {
+        isFeatured: false,
+        featuredSort: 0,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  }
+
+  if (bulkAction === "hot") {
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: { isManualHot: true },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  }
+
+  if (bulkAction === "unhot") {
+    await prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data: {
+        isManualHot: false,
+        manualHotSort: 0,
+      },
+    });
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  }
+
+  if (bulkAction === "delete") {
+    const products = await prisma.product.findMany({
+      where: {
+        id: {
+          in: productIds,
+        },
+      },
+      include: {
+        images: true,
+      },
+    });
+
+    const imageUrls = products.flatMap((product) =>
+      product.images.map((image) => image.originalUrl)
+    );
+
+    await prisma.productImage.deleteMany({
+      where: {
+        productId: {
+          in: productIds,
+        },
+      },
+    });
+
+    await prisma.product.deleteMany({
+      where: {
+        id: {
+          in: productIds,
+        },
+      },
+    });
+
+    await Promise.all(imageUrls.map((url) => deleteProductUploadFile(url)));
+
+    revalidatePath("/");
+    revalidatePath("/products");
+    revalidatePath("/admin");
+    revalidatePath("/admin/products");
+
+    redirect(appendSuccessParam(redirectTo, "bulk-deleted"));
+  }
+
+  redirect(appendSuccessParam(redirectTo, "bulk-invalid-action"));
 }
