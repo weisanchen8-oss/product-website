@@ -132,38 +132,35 @@ export default async function AdminInquiryDetailPage({
         </div>
 
 
-        <div className="admin-form-card">
+        <div className="admin-form-card admin-detail-section">
           <h2>更新询单状态</h2>
 
-          <form action={updateInquiryStatusAction} className="stack-form">
+          <form action={updateInquiryStatusAction} className="admin-status-form">
             <input type="hidden" name="inquiryId" value={inquiry.id} />
 
-            <label className="form-field">
-              <span>处理状态</span>
-              <select
-                name="status"
-                className="admin-select"
-                defaultValue={inquiry.status}
-              >
+            {/* 状态选择 */}
+            <div className="admin-form-group">
+              <label>处理状态</label>
+              <select name="status" defaultValue={inquiry.status}>
                 <option value="pending">待处理</option>
-                <option value="communicating">沟通中</option>
+                <option value="contacting">沟通中</option>
                 <option value="completed">已完成</option>
                 <option value="closed">已关闭</option>
               </select>
-            </label>
+            </div>
 
-            <label className="form-field">
-              <span>处理备注</span>
+            {/* 处理说明 */}
+            <div className="admin-form-group">
+              <label>处理说明（可选）</label>
               <textarea
                 name="note"
-                className="admin-textarea"
-                rows={5}
-                placeholder="例如：已通过微信联系客户，等待确认报价。"
+                rows={4}
+                placeholder="例如：已联系客户，等待报价确认。"
               />
-            </label>
-
-            <button type="submit" className="primary-button">
-              保存状态
+            </div>
+        
+            <button type="submit" className="primary-button admin-status-submit">
+              更新状态
             </button>
           </form>
         </div>
@@ -191,7 +188,9 @@ export default async function AdminInquiryDetailPage({
         <div className="admin-detail-log-list">
           {inquiry.logs.map((log) => (
             <div key={log.id} className="admin-detail-log-item">
-              <strong>{getInquiryStatusText(log.status)}</strong>
+              <strong>
+                {log.status ? getInquiryStatusText(log.status) : "状态更新"}
+              </strong>
               <p>{log.note || "无备注"}</p>
               <span>
                 {log.operatorName || "系统"} · {log.createdAt.toLocaleString("zh-CN")}
