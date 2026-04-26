@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台首页经营看板。
- * 展示产品、询单、重点客户、最近询单和最近跟进记录。
+ * 展示产品、询单、重点客户、最近询单和全系统后台操作日志。
  */
 
 import Link from "next/link";
@@ -40,29 +40,31 @@ function getInquiryStatusClassName(status: string) {
   }
 }
 
-function getLogTypeText(type: string) {
-  switch (type) {
-    case "status":
-      return "状态更新";
-    case "note":
-      return "内部备注";
-    case "follow":
-      return "跟进记录";
+function getModuleText(module: string) {
+  switch (module) {
+    case "product":
+      return "产品";
+    case "category":
+      return "分类";
+    case "inquiry":
+      return "询单";
     case "customer":
-      return "客户标记";
+      return "客户";
+    case "system":
+      return "系统";
     default:
-      return "操作记录";
+      return "操作";
   }
 }
 
-function getLogTypeClassName(type: string) {
-  switch (type) {
-    case "status":
-      return "dashboard-log-type dashboard-log-status";
-    case "note":
-      return "dashboard-log-type dashboard-log-note";
-    case "follow":
-      return "dashboard-log-type dashboard-log-follow";
+function getModuleClassName(module: string) {
+  switch (module) {
+    case "product":
+      return "dashboard-log-type dashboard-log-product";
+    case "category":
+      return "dashboard-log-type dashboard-log-category";
+    case "inquiry":
+      return "dashboard-log-type dashboard-log-inquiry";
     case "customer":
       return "dashboard-log-type dashboard-log-customer";
     default:
@@ -78,6 +80,29 @@ function truncateText(text: string, maxLength = 42) {
   return `${text.slice(0, maxLength)}...`;
 }
 
+function getAdminLogHref(log: {
+  module: string;
+  targetId: number | null;
+}) {
+  if (log.module === "product" && log.targetId) {
+    return `/admin/products/${log.targetId}`;
+  }
+
+  if (log.module === "category" && log.targetId) {
+    return `/admin/categories/${log.targetId}`;
+  }
+
+  if (log.module === "inquiry" && log.targetId) {
+    return `/admin/inquiries/${log.targetId}`;
+  }
+
+  if (log.module === "customer") {
+    return "/admin/inquiries?status=important";
+  }
+
+  return "/admin";
+}
+
 export default async function AdminHomePage() {
   const {
     productCount,
@@ -90,7 +115,7 @@ export default async function AdminHomePage() {
     completedInquiryCount,
     importantInquiryCount,
     recentInquiries,
-    recentLogs,
+    recentAdminLogs,
   } = await getAdminDashboardData();
 
   return (
@@ -98,7 +123,7 @@ export default async function AdminHomePage() {
       <div className="admin-dashboard-header">
         <div>
           <h1>后台首页</h1>
-          <p>查看产品、询单和客户跟进的核心业务概览。</p>
+          <p>查看产品、询单、客户跟进和后台操作记录。</p>
         </div>
 
         <div className="admin-dashboard-actions">
@@ -236,37 +261,40 @@ export default async function AdminHomePage() {
         <section className="admin-dashboard-panel dashboard-equal-panel">
           <div className="admin-dashboard-panel-header">
             <div>
-              <h2>最近跟进记录</h2>
-              <p>状态更新、备注和客户跟进</p>
+              <h2>最近后台操作</h2>
+              <p>产品、分类、询单和客户标记的操作记录</p>
             </div>
           </div>
 
           <div className="admin-dashboard-log-list">
-            {recentLogs.length > 0 ? (
-              recentLogs.map((log) => (
+            {recentAdminLogs.length > 0 ? (
+              recentAdminLogs.map((log) => (
                 <Link
                   key={log.id}
-                  href={`/admin/inquiries/${log.inquiryId}`}
+                  href={getAdminLogHref({
+                    module: log.module,
+                    targetId: log.targetId,
+                  })}
                   className="admin-dashboard-log-item"
                 >
                   <div className="dashboard-log-top">
-                    <span className={getLogTypeClassName(log.type)}>
-                      {getLogTypeText(log.type)}
+                    <span className={getModuleClassName(log.module)}>
+                      {getModuleText(log.module)}
                     </span>
 
                     <small>{log.createdAt.toLocaleString("zh-CN")}</small>
                   </div>
 
-                  <strong>{truncateText(log.note || "无备注")}</strong>
+                  <strong>{truncateText(log.note || log.action || "后台操作")}</strong>
 
                   <p>
-                    {log.inquiry.user.isImportant ? "⭐ " : ""}
-                    {log.inquiry.inquiryNo}
+                    {log.operatorName || "管理员"}
+                    {log.targetName ? ` · ${log.targetName}` : ""}
                   </p>
                 </Link>
               ))
             ) : (
-              <p className="admin-empty-text">暂无跟进记录</p>
+              <p className="admin-empty-text">暂无后台操作记录</p>
             )}
           </div>
         </section>

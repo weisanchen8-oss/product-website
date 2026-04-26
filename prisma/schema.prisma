@@ -165,3 +165,16 @@ model SiteContent {
   extraJson  String?
   updatedAt  DateTime @updatedAt
 }
+
+model AdminLog {
+  id           Int      @id @default(autoincrement())
+  module       String
+  action       String
+  targetId     Int?
+  targetName   String?
+  operatorName String?
+  note         String?
+  beforeData   String?
+  afterData    String?
+  createdAt    DateTime @default(now())
+}

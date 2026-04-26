@@ -5,8 +5,7 @@
  * - 分类搜索
  * - 新增分类
  * - 编辑分类
- * - 删除分类前确认
- * - 删除分类安全校验
+ * - 删除分类成功/失败提示
  * - 批量启用 / 停用分类
  */
 
@@ -55,6 +54,7 @@ export default async function AdminCategoriesPage({
 }: AdminCategoriesPageProps) {
   const { success, q = "" } = await searchParams;
   const keyword = q.trim();
+
   const { categories } = await getAdminCategoriesPageData(keyword);
   const toastMessage = getToastMessage(success);
 

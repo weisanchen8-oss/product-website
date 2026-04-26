@@ -19,7 +19,7 @@ export async function getAdminDashboardData() {
     completedInquiryCount,
     importantInquiryCount,
     recentInquiries,
-    recentLogs,
+    recentAdminLogs,
     recentProducts,
     contentItems,
   ] = await Promise.all([
@@ -53,16 +53,9 @@ export async function getAdminDashboardData() {
         items: true,
       },
     }),
-    prisma.inquiryLog.findMany({
+    prisma.adminLog.findMany({
       orderBy: [{ createdAt: "desc" }],
-      take: 6,
-      include: {
-        inquiry: {
-          include: {
-            user: true,
-          },
-        },
-      },
+      take: 8,
     }),
     prisma.product.findMany({
       orderBy: [{ createdAt: "desc" }],
@@ -91,7 +84,7 @@ export async function getAdminDashboardData() {
     completedInquiryCount,
     importantInquiryCount,
     recentInquiries,
-    recentLogs,
+    recentAdminLogs,
     recentProducts,
     contentItems,
   };

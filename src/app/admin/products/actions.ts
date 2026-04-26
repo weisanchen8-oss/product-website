@@ -1,13 +1,7 @@
 /**
  * 文件作用：
  * 定义后台产品管理相关的服务端写入动作。
- * 支持：
- * - 新增产品
- * - 编辑产品
- * - 上传产品图片
- * - 设置封面图
- * - 删除产品图片
- * - 批量上架 / 下架 / 推荐 / 取消推荐 / 热销 / 取消热销 / 删除
+ * 支持产品新增、编辑、图片管理、批量管理，并写入 AdminLog 操作日志。
  */
 
 "use server";
@@ -17,6 +11,7 @@ import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { createAdminLog } from "@/lib/admin-log";
 
 function normalizeSlug(value: string) {
   return value
@@ -72,6 +67,21 @@ function getNumberOrZero(value: FormDataEntryValue | null) {
   return Number.isNaN(numberValue) ? 0 : numberValue;
 }
 
+function getSafeRedirectPath(value: FormDataEntryValue | null) {
+  const redirectTo = String(value ?? "/admin/products").trim();
+
+  if (redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+    return redirectTo;
+  }
+
+  return "/admin/products";
+}
+
+function appendSuccessParam(pathValue: string, success: string) {
+  const separator = pathValue.includes("?") ? "&" : "?";
+  return `${pathValue}${separator}success=${success}`;
+}
+
 function buildSpecsJsonFromFormData(formData: FormData) {
   const keys = formData.getAll("specKey");
   const values = formData.getAll("specValue");
@@ -100,35 +110,17 @@ function buildSpecsJsonFromFormData(formData: FormData) {
 }
 
 async function getProductPayload(formData: FormData, currentId?: number) {
-  const nameValue = formData.get("name");
-  const slugValue = formData.get("slug");
-  const categoryIdValue = formData.get("categoryId");
-  const shortDescValue = formData.get("shortDesc");
-  const fullDescValue = formData.get("fullDesc");
-  const keywordsValue = formData.get("keywords");
-  const priceTextValue = formData.get("priceText");
-  const salesCountValue = formData.get("salesCount");
-  const featuredSortValue = formData.get("featuredSort");
-  const manualHotSortValue = formData.get("manualHotSort");
-  const isActiveValue = formData.get("isActive");
-  const isFeaturedValue = formData.get("isFeatured");
-  const isManualHotValue = formData.get("isManualHot");
-
-  const name = typeof nameValue === "string" ? nameValue.trim() : "";
-  const slugRaw = typeof slugValue === "string" ? slugValue.trim() : "";
-  const categoryId = Number(categoryIdValue);
-  const shortDesc =
-    typeof shortDescValue === "string" ? shortDescValue.trim() : "";
-  const fullDesc =
-    typeof fullDescValue === "string" ? fullDescValue.trim() : "";
-  const keywords =
-    typeof keywordsValue === "string" ? keywordsValue.trim() : "";
-  const priceText =
-    typeof priceTextValue === "string" ? priceTextValue.trim() : "";
-  const salesCount = getNumberOrZero(salesCountValue);
-  const isActive = isActiveValue === "on";
-  const isFeatured = isFeaturedValue === "on";
-  const isManualHot = isManualHotValue === "on";
+  const name = String(formData.get("name") ?? "").trim();
+  const slugRaw = String(formData.get("slug") ?? "").trim();
+  const categoryId = Number(formData.get("categoryId"));
+  const shortDesc = String(formData.get("shortDesc") ?? "").trim();
+  const fullDesc = String(formData.get("fullDesc") ?? "").trim();
+  const keywords = String(formData.get("keywords") ?? "").trim();
+  const priceText = String(formData.get("priceText") ?? "").trim();
+  const salesCount = getNumberOrZero(formData.get("salesCount"));
+  const isActive = formData.get("isActive") === "on";
+  const isFeatured = formData.get("isFeatured") === "on";
+  const isManualHot = formData.get("isManualHot") === "on";
   const specsJson = buildSpecsJsonFromFormData(formData);
 
   if (!name) {
@@ -153,14 +145,14 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   let featuredSort = 0;
 
   if (isFeatured) {
-    const manualSort = getNumberOrZero(featuredSortValue);
+    const manualSort = getNumberOrZero(formData.get("featuredSort"));
     featuredSort = manualSort || (await getNextFeaturedSort());
   }
 
   let manualHotSort = 0;
 
   if (isManualHot) {
-    const manualSort = getNumberOrZero(manualHotSortValue);
+    const manualSort = getNumberOrZero(formData.get("manualHotSort"));
     manualHotSort = manualSort || (await getNextManualHotSort());
   }
 
@@ -198,21 +190,6 @@ function getUpdateErrorRedirect(id: number, error: unknown) {
   return `/admin/products/${id}?error=update-failed`;
 }
 
-function getSafeRedirectPath(value: FormDataEntryValue | null) {
-  const redirectTo = String(value ?? "/admin/products").trim();
-
-  if (redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
-    return redirectTo;
-  }
-
-  return "/admin/products";
-}
-
-function appendSuccessParam(pathValue: string, success: string) {
-  const separator = pathValue.includes("?") ? "&" : "?";
-  return `${pathValue}${separator}success=${success}`;
-}
-
 async function deleteProductUploadFile(imageUrl: string) {
   if (!imageUrl.startsWith("/uploads/products/")) {
     return;
@@ -227,6 +204,21 @@ async function deleteProductUploadFile(imageUrl: string) {
   }
 }
 
+function revalidateProductPaths(productSlug?: string, productId?: number) {
+  revalidatePath("/");
+  revalidatePath("/products");
+  revalidatePath("/admin");
+  revalidatePath("/admin/products");
+
+  if (productId) {
+    revalidatePath(`/admin/products/${productId}`);
+  }
+
+  if (productSlug) {
+    revalidatePath(`/product/${productSlug}`);
+  }
+}
+
 export async function createProductAction(formData: FormData) {
   let payload: Awaited<ReturnType<typeof getProductPayload>>;
 
@@ -237,27 +229,44 @@ export async function createProductAction(formData: FormData) {
   }
 
   try {
-    await prisma.product.create({
+    const product = await prisma.product.create({
       data: payload,
+    });
+
+    await createAdminLog({
+      module: "product",
+      action: "create",
+      targetId: product.id,
+      targetName: product.name,
+      note: `新增产品：${product.name}`,
     });
   } catch {
     redirect("/admin/products/new?error=create-failed");
   }
 
-  revalidatePath("/");
-  revalidatePath("/products");
-  revalidatePath("/admin");
-  revalidatePath("/admin/products");
+  revalidateProductPaths(payload.slug);
 
   redirect("/admin/products?success=created");
 }
 
 export async function updateProductAction(formData: FormData) {
-  const idValue = formData.get("id");
-  const id = Number(idValue);
+  const id = Number(formData.get("id"));
 
   if (!id || Number.isNaN(id)) {
     throw new Error("无效的产品 ID。");
+  }
+
+  const oldProduct = await prisma.product.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  });
+
+  if (!oldProduct) {
+    redirect("/admin/products?error=product-not-found");
   }
 
   let payload: Awaited<ReturnType<typeof getProductPayload>>;
@@ -269,28 +278,34 @@ export async function updateProductAction(formData: FormData) {
   }
 
   try {
-    await prisma.product.update({
+    const product = await prisma.product.update({
       where: { id },
       data: payload,
+    });
+
+    await createAdminLog({
+      module: "product",
+      action: "update",
+      targetId: product.id,
+      targetName: product.name,
+      note: `编辑产品：${oldProduct.name} → ${product.name}`,
     });
   } catch {
     redirect(`/admin/products/${id}?error=update-failed`);
   }
 
-  revalidatePath("/");
-  revalidatePath("/products");
-  revalidatePath("/admin");
-  revalidatePath("/admin/products");
-  revalidatePath(`/admin/products/${id}`);
-  revalidatePath(`/product/${payload.slug}`);
+  revalidateProductPaths(payload.slug, id);
+
+  if (oldProduct.slug !== payload.slug) {
+    revalidatePath(`/product/${oldProduct.slug}`);
+  }
 
   redirect(`/admin/products/${id}?success=updated`);
 }
 
 export async function uploadProductImageAction(formData: FormData) {
-  const productIdValue = formData.get("productId");
+  const productId = Number(formData.get("productId"));
   const fileValue = formData.get("image");
-  const productId = Number(productIdValue);
 
   if (!productId || Number.isNaN(productId)) {
     throw new Error("无效的产品 ID。");
@@ -339,21 +354,22 @@ export async function uploadProductImageAction(formData: FormData) {
     },
   });
 
-  revalidatePath(`/admin/products/${productId}`);
-  revalidatePath("/admin/products");
-  revalidatePath("/products");
-  revalidatePath(`/product/${product.slug}`);
-  revalidatePath("/");
+  await createAdminLog({
+    module: "product",
+    action: "image_upload",
+    targetId: product.id,
+    targetName: product.name,
+    note: `上传产品图片：${product.name}`,
+  });
+
+  revalidateProductPaths(product.slug, productId);
 
   redirect(`/admin/products/${productId}?success=image-uploaded`);
 }
 
 export async function setProductCoverImageAction(formData: FormData) {
-  const productIdValue = formData.get("productId");
-  const imageIdValue = formData.get("imageId");
-
-  const productId = Number(productIdValue);
-  const imageId = Number(imageIdValue);
+  const productId = Number(formData.get("productId"));
+  const imageId = Number(formData.get("imageId"));
 
   if (!productId || Number.isNaN(productId)) {
     throw new Error("无效的产品 ID。");
@@ -382,21 +398,22 @@ export async function setProductCoverImageAction(formData: FormData) {
     }),
   ]);
 
-  revalidatePath(`/admin/products/${productId}`);
-  revalidatePath("/admin/products");
-  revalidatePath("/products");
-  revalidatePath(`/product/${product.slug}`);
-  revalidatePath("/");
+  await createAdminLog({
+    module: "product",
+    action: "cover_update",
+    targetId: product.id,
+    targetName: product.name,
+    note: `设置产品封面图：${product.name}`,
+  });
+
+  revalidateProductPaths(product.slug, productId);
 
   redirect(`/admin/products/${productId}?success=cover-updated`);
 }
 
 export async function deleteProductImageAction(formData: FormData) {
-  const productIdValue = formData.get("productId");
-  const imageIdValue = formData.get("imageId");
-
-  const productId = Number(productIdValue);
-  const imageId = Number(imageIdValue);
+  const productId = Number(formData.get("productId"));
+  const imageId = Number(formData.get("imageId"));
 
   if (!productId || Number.isNaN(productId)) {
     throw new Error("无效的产品 ID。");
@@ -440,11 +457,15 @@ export async function deleteProductImageAction(formData: FormData) {
     }
   }
 
-  revalidatePath(`/admin/products/${productId}`);
-  revalidatePath("/admin/products");
-  revalidatePath("/products");
-  revalidatePath(`/product/${image.product.slug}`);
-  revalidatePath("/");
+  await createAdminLog({
+    module: "product",
+    action: "image_delete",
+    targetId: image.product.id,
+    targetName: image.product.name,
+    note: `删除产品图片：${image.product.name}`,
+  });
+
+  revalidateProductPaths(image.product.slug, productId);
 
   redirect(`/admin/products/${productId}?success=image-deleted`);
 }
@@ -462,122 +483,36 @@ export async function bulkManageProductsAction(formData: FormData) {
     redirect(appendSuccessParam(redirectTo, "bulk-empty"));
   }
 
-  if (
-    ![
-      "activate",
-      "deactivate",
-      "feature",
-      "unfeature",
-      "hot",
-      "unhot",
-      "delete",
-    ].includes(bulkAction)
-  ) {
+  const validActions = [
+    "activate",
+    "deactivate",
+    "feature",
+    "unfeature",
+    "hot",
+    "unhot",
+    "delete",
+  ];
+
+  if (!validActions.includes(bulkAction)) {
     redirect(appendSuccessParam(redirectTo, "bulk-invalid-action"));
   }
 
-  if (bulkAction === "activate") {
-    await prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: { isActive: true },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
-
-    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
-  }
-
-  if (bulkAction === "deactivate") {
-    await prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: { isActive: false },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
-
-    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
-  }
-
-  if (bulkAction === "feature") {
-    await prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: { isFeatured: true },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
-
-    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
-  }
-
-  if (bulkAction === "unfeature") {
-    await prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: {
-        isFeatured: false,
-        featuredSort: 0,
+  const products = await prisma.product.findMany({
+    where: {
+      id: {
+        in: productIds,
       },
-    });
+    },
+    include: {
+      images: true,
+    },
+  });
 
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
-
-    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
-  }
-
-  if (bulkAction === "hot") {
-    await prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: { isManualHot: true },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
-
-    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
-  }
-
-  if (bulkAction === "unhot") {
-    await prisma.product.updateMany({
-      where: { id: { in: productIds } },
-      data: {
-        isManualHot: false,
-        manualHotSort: 0,
-      },
-    });
-
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
-
-    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+  if (products.length === 0) {
+    redirect(appendSuccessParam(redirectTo, "bulk-empty"));
   }
 
   if (bulkAction === "delete") {
-    const products = await prisma.product.findMany({
-      where: {
-        id: {
-          in: productIds,
-        },
-      },
-      include: {
-        images: true,
-      },
-    });
-
     const imageUrls = products.flatMap((product) =>
       product.images.map((image) => image.originalUrl)
     );
@@ -600,13 +535,92 @@ export async function bulkManageProductsAction(formData: FormData) {
 
     await Promise.all(imageUrls.map((url) => deleteProductUploadFile(url)));
 
-    revalidatePath("/");
-    revalidatePath("/products");
-    revalidatePath("/admin");
-    revalidatePath("/admin/products");
+    await Promise.all(
+      products.map((product) =>
+        createAdminLog({
+          module: "product",
+          action: "delete",
+          targetId: product.id,
+          targetName: product.name,
+          note: `批量删除产品：${product.name}`,
+        })
+      )
+    );
+
+    revalidateProductPaths();
 
     redirect(appendSuccessParam(redirectTo, "bulk-deleted"));
   }
 
-  redirect(appendSuccessParam(redirectTo, "bulk-invalid-action"));
+  const actionMap: Record<
+    string,
+    {
+      data: {
+        isActive?: boolean;
+        isFeatured?: boolean;
+        featuredSort?: number;
+        isManualHot?: boolean;
+        manualHotSort?: number;
+      };
+      actionText: string;
+    }
+  > = {
+    activate: {
+      data: { isActive: true },
+      actionText: "批量上架产品",
+    },
+    deactivate: {
+      data: { isActive: false },
+      actionText: "批量下架产品",
+    },
+    feature: {
+      data: { isFeatured: true },
+      actionText: "批量设为推荐产品",
+    },
+    unfeature: {
+      data: {
+        isFeatured: false,
+        featuredSort: 0,
+      },
+      actionText: "批量取消推荐产品",
+    },
+    hot: {
+      data: { isManualHot: true },
+      actionText: "批量设为热销产品",
+    },
+    unhot: {
+      data: {
+        isManualHot: false,
+        manualHotSort: 0,
+      },
+      actionText: "批量取消热销产品",
+    },
+  };
+
+  const matchedAction = actionMap[bulkAction];
+
+  await prisma.product.updateMany({
+    where: {
+      id: {
+        in: productIds,
+      },
+    },
+    data: matchedAction.data,
+  });
+
+  await Promise.all(
+    products.map((product) =>
+      createAdminLog({
+        module: "product",
+        action: bulkAction,
+        targetId: product.id,
+        targetName: product.name,
+        note: `${matchedAction.actionText}：${product.name}`,
+      })
+    )
+  );
+
+  revalidateProductPaths();
+
+  redirect(appendSuccessParam(redirectTo, "bulk-updated"));
 }

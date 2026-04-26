@@ -6,8 +6,8 @@
  * - 编辑分类
  * - 删除分类安全校验
  * - 批量启用 / 停用分类
- * - slug 自动生成
- * - 排序值自动补位
+ * - 写入后台通用操作日志 AdminLog
+ * - 记录 beforeData / afterData 快照
  */
 
 "use server";
@@ -15,6 +15,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { createAdminLog } from "@/lib/admin-log";
 
 function normalizeSlug(value: string) {
   return value
@@ -72,6 +73,26 @@ async function getUniqueCategorySlug(baseSlug: string, currentId?: number) {
   }
 }
 
+function getCategorySnapshot(category: {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  parentId: number | null;
+  sortOrder: number;
+  isActive: boolean;
+}) {
+  return {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    description: category.description,
+    parentId: category.parentId,
+    sortOrder: category.sortOrder,
+    isActive: category.isActive,
+  };
+}
+
 export async function createCategoryAction(formData: FormData) {
   const nameValue = formData.get("name");
   const slugValue = formData.get("slug");
@@ -109,7 +130,7 @@ export async function createCategoryAction(formData: FormData) {
   }
 
   try {
-    await prisma.category.create({
+    const category = await prisma.category.create({
       data: {
         name,
         slug,
@@ -119,6 +140,16 @@ export async function createCategoryAction(formData: FormData) {
         isActive,
       },
     });
+
+    await createAdminLog({
+      module: "category",
+      action: "create",
+      targetId: category.id,
+      targetName: category.name,
+      note: `新增分类：${category.name}`,
+      beforeData: null,
+      afterData: getCategorySnapshot(category),
+    });
   } catch {
     redirect("/admin/categories/new?error=create-failed");
   }
@@ -126,6 +157,7 @@ export async function createCategoryAction(formData: FormData) {
   revalidatePath("/admin/categories");
   revalidatePath("/products");
   revalidatePath("/");
+  revalidatePath("/admin");
 
   redirect("/admin/categories?success=created");
 }
@@ -166,11 +198,21 @@ export async function updateCategoryAction(formData: FormData) {
     redirect(`/admin/categories/${id}?error=invalid-parent`);
   }
 
+  const oldCategory = await prisma.category.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!oldCategory) {
+    redirect("/admin/categories?success=delete-not-found");
+  }
+
   const baseSlug = normalizeSlug(slugRaw || name);
   const slug = await getUniqueCategorySlug(baseSlug, id);
 
   try {
-    await prisma.category.update({
+    const category = await prisma.category.update({
       where: {
         id,
       },
@@ -183,6 +225,16 @@ export async function updateCategoryAction(formData: FormData) {
         isActive,
       },
     });
+
+    await createAdminLog({
+      module: "category",
+      action: "update",
+      targetId: category.id,
+      targetName: category.name,
+      note: `编辑分类：${oldCategory.name} → ${category.name}`,
+      beforeData: getCategorySnapshot(oldCategory),
+      afterData: getCategorySnapshot(category),
+    });
   } catch {
     redirect(`/admin/categories/${id}?error=update-failed`);
   }
@@ -191,6 +243,7 @@ export async function updateCategoryAction(formData: FormData) {
   revalidatePath(`/admin/categories/${id}`);
   revalidatePath("/products");
   revalidatePath("/");
+  revalidatePath("/admin");
 
   redirect(`/admin/categories/${id}?success=updated`);
 }
@@ -222,10 +275,30 @@ export async function deleteCategoryAction(formData: FormData) {
   }
 
   if (category._count.products > 0) {
+    await createAdminLog({
+      module: "category",
+      action: "delete_blocked",
+      targetId: category.id,
+      targetName: category.name,
+      note: `尝试删除分类失败：${category.name} 下仍有 ${category._count.products} 个产品。`,
+      beforeData: getCategorySnapshot(category),
+      afterData: getCategorySnapshot(category),
+    });
+
     redirect("/admin/categories?success=delete-has-products");
   }
 
   if (category._count.children > 0) {
+    await createAdminLog({
+      module: "category",
+      action: "delete_blocked",
+      targetId: category.id,
+      targetName: category.name,
+      note: `尝试删除分类失败：${category.name} 下仍有 ${category._count.children} 个子分类。`,
+      beforeData: getCategorySnapshot(category),
+      afterData: getCategorySnapshot(category),
+    });
+
     redirect("/admin/categories?success=delete-has-children");
   }
 
@@ -235,6 +308,16 @@ export async function deleteCategoryAction(formData: FormData) {
         id,
       },
     });
+
+    await createAdminLog({
+      module: "category",
+      action: "delete",
+      targetId: category.id,
+      targetName: category.name,
+      note: `删除分类：${category.name}`,
+      beforeData: getCategorySnapshot(category),
+      afterData: null,
+    });
   } catch {
     redirect("/admin/categories?success=delete-failed");
   }
@@ -242,6 +325,7 @@ export async function deleteCategoryAction(formData: FormData) {
   revalidatePath("/admin/categories");
   revalidatePath("/products");
   revalidatePath("/");
+  revalidatePath("/admin");
 
   redirect("/admin/categories?success=deleted");
 }
@@ -263,6 +347,25 @@ export async function bulkUpdateCategoryStatusAction(formData: FormData) {
     redirect(appendSuccessParam(redirectTo, "bulk-invalid-action"));
   }
 
+  const categories = await prisma.category.findMany({
+    where: {
+      id: {
+        in: categoryIds,
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      parentId: true,
+      sortOrder: true,
+      isActive: true,
+    },
+  });
+
+  const nextIsActive = bulkAction === "activate";
+
   await prisma.category.updateMany({
     where: {
       id: {
@@ -270,13 +373,33 @@ export async function bulkUpdateCategoryStatusAction(formData: FormData) {
       },
     },
     data: {
-      isActive: bulkAction === "activate",
+      isActive: nextIsActive,
     },
   });
+
+  const actionText = bulkAction === "activate" ? "启用" : "停用";
+
+  await Promise.all(
+    categories.map((category) =>
+      createAdminLog({
+        module: "category",
+        action: bulkAction,
+        targetId: category.id,
+        targetName: category.name,
+        note: `批量${actionText}分类：${category.name}`,
+        beforeData: getCategorySnapshot(category),
+        afterData: {
+          ...getCategorySnapshot(category),
+          isActive: nextIsActive,
+        },
+      })
+    )
+  );
 
   revalidatePath("/admin/categories");
   revalidatePath("/products");
   revalidatePath("/");
+  revalidatePath("/admin");
 
   redirect(appendSuccessParam(redirectTo, "bulk-updated"));
 }

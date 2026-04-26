@@ -1,6 +1,13 @@
 /**
  * 文件作用：
  * 定义后台询单管理相关服务端动作。
+ * 支持：
+ * - 单条更新询单状态
+ * - 批量更新询单状态
+ * - 保存内部备注
+ * - 新增跟进记录
+ * - 标记 / 取消重点客户
+ * - 写入后台通用操作日志 AdminLog
  */
 
 "use server";
@@ -8,8 +15,25 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { createAdminLog } from "@/lib/admin-log";
 
 const VALID_INQUIRY_STATUSES = ["pending", "contacting", "completed", "closed"];
+
+function getInquiryStatusText(status: string) {
+  switch (status) {
+    case "pending":
+      return "待处理";
+    case "contacting":
+    case "communicating":
+      return "沟通中";
+    case "completed":
+      return "已完成";
+    case "closed":
+      return "已关闭";
+    default:
+      return status || "未知状态";
+  }
+}
 
 function getSafeRedirectPath(value: FormDataEntryValue | null) {
   const redirectTo = String(value ?? "/admin/inquiries").trim();
@@ -42,7 +66,11 @@ export async function updateInquiryStatusAction(formData: FormData) {
 
   const inquiry = await prisma.inquiry.findUnique({
     where: { id: inquiryId },
-    select: { status: true },
+    select: {
+      id: true,
+      inquiryNo: true,
+      status: true,
+    },
   });
 
   if (!inquiry) {
@@ -67,6 +95,17 @@ export async function updateInquiryStatusAction(formData: FormData) {
     },
   });
 
+  await createAdminLog({
+    module: "inquiry",
+    action: "status_update",
+    targetId: inquiry.id,
+    targetName: inquiry.inquiryNo,
+    note: `更新询单状态：${inquiry.inquiryNo}，${getInquiryStatusText(
+      oldStatus
+    )} → ${getInquiryStatusText(newStatus)}${note ? `。说明：${note}` : ""}`,
+  });
+
+  revalidatePath("/admin");
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${inquiryId}`);
 
@@ -98,6 +137,7 @@ export async function bulkUpdateInquiryStatusAction(formData: FormData) {
     },
     select: {
       id: true,
+      inquiryNo: true,
       status: true,
     },
   });
@@ -123,11 +163,26 @@ export async function bulkUpdateInquiryStatusAction(formData: FormData) {
       type: "status",
       fromStatus: item.status,
       toStatus: newStatus,
-      note: `批量更新状态为：${newStatus}`,
+      note: `批量更新状态为：${getInquiryStatusText(newStatus)}`,
       operatorName: "管理员",
     })),
   });
 
+  await Promise.all(
+    inquiries.map((item) =>
+      createAdminLog({
+        module: "inquiry",
+        action: "bulk_status_update",
+        targetId: item.id,
+        targetName: item.inquiryNo,
+        note: `批量更新询单状态：${item.inquiryNo}，${getInquiryStatusText(
+          item.status
+        )} → ${getInquiryStatusText(newStatus)}`,
+      })
+    )
+  );
+
+  revalidatePath("/admin");
   revalidatePath("/admin/inquiries");
 
   inquiries.forEach((item) => {
@@ -147,6 +202,18 @@ export async function updateInquiryAdminNoteAction(formData: FormData) {
     throw new Error("无效的询单 ID。");
   }
 
+  const inquiry = await prisma.inquiry.findUnique({
+    where: { id: inquiryId },
+    select: {
+      id: true,
+      inquiryNo: true,
+    },
+  });
+
+  if (!inquiry) {
+    throw new Error("询单不存在。");
+  }
+
   await prisma.inquiry.update({
     where: { id: inquiryId },
     data: { adminNote },
@@ -162,6 +229,17 @@ export async function updateInquiryAdminNoteAction(formData: FormData) {
     },
   });
 
+  await createAdminLog({
+    module: "inquiry",
+    action: "admin_note_update",
+    targetId: inquiry.id,
+    targetName: inquiry.inquiryNo,
+    note: adminNote
+      ? `更新询单内部备注：${inquiry.inquiryNo}`
+      : `清空询单内部备注：${inquiry.inquiryNo}`,
+  });
+
+  revalidatePath("/admin");
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${inquiryId}`);
 
@@ -183,7 +261,10 @@ export async function addInquiryFollowAction(formData: FormData) {
 
   const inquiry = await prisma.inquiry.findUnique({
     where: { id: inquiryId },
-    select: { id: true },
+    select: {
+      id: true,
+      inquiryNo: true,
+    },
   });
 
   if (!inquiry) {
@@ -199,6 +280,15 @@ export async function addInquiryFollowAction(formData: FormData) {
     },
   });
 
+  await createAdminLog({
+    module: "inquiry",
+    action: "follow_create",
+    targetId: inquiry.id,
+    targetName: inquiry.inquiryNo,
+    note: `新增询单跟进记录：${inquiry.inquiryNo}。内容：${content}`,
+  });
+
+  revalidatePath("/admin");
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${inquiryId}`);
 
@@ -216,6 +306,20 @@ export async function toggleImportantCustomerAction(formData: FormData) {
 
   if (!userId || Number.isNaN(userId)) {
     throw new Error("无效的客户 ID。");
+  }
+
+  const inquiry = await prisma.inquiry.findUnique({
+    where: { id: inquiryId },
+    select: {
+      id: true,
+      inquiryNo: true,
+      contactName: true,
+      companyName: true,
+    },
+  });
+
+  if (!inquiry) {
+    throw new Error("询单不存在。");
   }
 
   await prisma.user.update({
@@ -236,6 +340,17 @@ export async function toggleImportantCustomerAction(formData: FormData) {
     },
   });
 
+  await createAdminLog({
+    module: "customer",
+    action: nextImportant ? "mark_important" : "unmark_important",
+    targetId: userId,
+    targetName: inquiry.contactName,
+    note: nextImportant
+      ? `标记重点客户：${inquiry.contactName}（${inquiry.companyName}），来源询单：${inquiry.inquiryNo}`
+      : `取消重点客户：${inquiry.contactName}（${inquiry.companyName}），来源询单：${inquiry.inquiryNo}`,
+  });
+
+  revalidatePath("/admin");
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${inquiryId}`);
 
