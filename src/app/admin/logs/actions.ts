@@ -585,3 +585,4 @@ export async function rollbackProductLogAction(formData: FormData) {
 
   redirect(`/admin/logs/${logId}?success=rollback-success`);
 }
+

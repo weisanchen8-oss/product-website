@@ -359,3 +359,4 @@ export default async function AdminLogDetailPage({
     </AdminLayout>
   );
 }
+
