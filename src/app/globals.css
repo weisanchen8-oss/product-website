@@ -4567,3 +4567,152 @@ input {
   pointer-events: none;
   opacity: 0.45;
 }
+
+.admin-log-change-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-log-change-link:hover {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.admin-log-no-change {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.admin-log-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.admin-log-detail-header h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  color: #020617;
+}
+
+.admin-log-detail-header p {
+  margin-top: 10px;
+  color: #64748b;
+}
+
+.admin-log-detail-card {
+  padding: 28px;
+  border-radius: 24px;
+  background: #ffffff;
+  margin-bottom: 18px;
+}
+
+.admin-log-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-log-detail-summary > div {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.admin-log-detail-summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-log-detail-summary strong {
+  display: block;
+  color: #020617;
+  font-size: 15px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.admin-log-detail-summary-full {
+  grid-column: 1 / -1;
+}
+
+.admin-log-detail-table-header {
+  margin-bottom: 18px;
+}
+
+.admin-log-detail-table-header h2 {
+  margin: 0;
+  color: #020617;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.admin-log-detail-table-header p {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.admin-log-detail-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-log-detail-table {
+  width: 100%;
+  min-width: 860px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.admin-log-detail-table th,
+.admin-log-detail-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.admin-log-detail-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.admin-log-row-changed {
+  background: #fffbeb;
+}
+
+.admin-log-row-changed td:last-child {
+  color: #b45309;
+  font-weight: 800;
+}
+
+@media (max-width: 768px) {
+  .admin-log-detail-header {
+    flex-direction: column;
+  }
+
+  .admin-log-detail-summary {
+    grid-template-columns: 1fr;
+  }
+}

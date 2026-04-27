@@ -8,6 +8,7 @@
  * - 新增跟进记录
  * - 标记 / 取消重点客户
  * - 写入后台通用操作日志 AdminLog
+ * - 记录 beforeData / afterData 快照
  */
 
 "use server";
@@ -50,6 +51,29 @@ function appendSuccessParam(path: string, success: string) {
   return `${path}${separator}success=${success}`;
 }
 
+function getInquirySnapshot(inquiry: {
+  id: number;
+  inquiryNo: string;
+  status: string;
+  adminNote?: string | null;
+  contactName?: string;
+  companyName?: string;
+  phone?: string;
+  email?: string;
+}) {
+  return {
+    id: inquiry.id,
+    inquiryNo: inquiry.inquiryNo,
+    status: inquiry.status,
+    statusText: getInquiryStatusText(inquiry.status),
+    adminNote: inquiry.adminNote ?? null,
+    contactName: inquiry.contactName ?? "",
+    companyName: inquiry.companyName ?? "",
+    phone: inquiry.phone ?? "",
+    email: inquiry.email ?? "",
+  };
+}
+
 export async function updateInquiryStatusAction(formData: FormData) {
   const inquiryId = Number(formData.get("inquiryId"));
   const newStatus = String(formData.get("status") ?? "");
@@ -70,6 +94,11 @@ export async function updateInquiryStatusAction(formData: FormData) {
       id: true,
       inquiryNo: true,
       status: true,
+      adminNote: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
     },
   });
 
@@ -79,9 +108,19 @@ export async function updateInquiryStatusAction(formData: FormData) {
 
   const oldStatus = inquiry.status;
 
-  await prisma.inquiry.update({
+  const updatedInquiry = await prisma.inquiry.update({
     where: { id: inquiryId },
     data: { status: newStatus },
+    select: {
+      id: true,
+      inquiryNo: true,
+      status: true,
+      adminNote: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
+    },
   });
 
   await prisma.inquiryLog.create({
@@ -103,6 +142,8 @@ export async function updateInquiryStatusAction(formData: FormData) {
     note: `更新询单状态：${inquiry.inquiryNo}，${getInquiryStatusText(
       oldStatus
     )} → ${getInquiryStatusText(newStatus)}${note ? `。说明：${note}` : ""}`,
+    beforeData: getInquirySnapshot(inquiry),
+    afterData: getInquirySnapshot(updatedInquiry),
   });
 
   revalidatePath("/admin");
@@ -139,6 +180,11 @@ export async function bulkUpdateInquiryStatusAction(formData: FormData) {
       id: true,
       inquiryNo: true,
       status: true,
+      adminNote: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
     },
   });
 
@@ -178,6 +224,11 @@ export async function bulkUpdateInquiryStatusAction(formData: FormData) {
         note: `批量更新询单状态：${item.inquiryNo}，${getInquiryStatusText(
           item.status
         )} → ${getInquiryStatusText(newStatus)}`,
+        beforeData: getInquirySnapshot(item),
+        afterData: getInquirySnapshot({
+          ...item,
+          status: newStatus,
+        }),
       })
     )
   );
@@ -207,6 +258,12 @@ export async function updateInquiryAdminNoteAction(formData: FormData) {
     select: {
       id: true,
       inquiryNo: true,
+      status: true,
+      adminNote: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
     },
   });
 
@@ -214,9 +271,19 @@ export async function updateInquiryAdminNoteAction(formData: FormData) {
     throw new Error("询单不存在。");
   }
 
-  await prisma.inquiry.update({
+  const updatedInquiry = await prisma.inquiry.update({
     where: { id: inquiryId },
     data: { adminNote },
+    select: {
+      id: true,
+      inquiryNo: true,
+      status: true,
+      adminNote: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
+    },
   });
 
   await prisma.inquiryLog.create({
@@ -237,6 +304,8 @@ export async function updateInquiryAdminNoteAction(formData: FormData) {
     note: adminNote
       ? `更新询单内部备注：${inquiry.inquiryNo}`
       : `清空询单内部备注：${inquiry.inquiryNo}`,
+    beforeData: getInquirySnapshot(inquiry),
+    afterData: getInquirySnapshot(updatedInquiry),
   });
 
   revalidatePath("/admin");
@@ -264,6 +333,12 @@ export async function addInquiryFollowAction(formData: FormData) {
     select: {
       id: true,
       inquiryNo: true,
+      status: true,
+      adminNote: true,
+      contactName: true,
+      companyName: true,
+      phone: true,
+      email: true,
     },
   });
 
@@ -286,6 +361,11 @@ export async function addInquiryFollowAction(formData: FormData) {
     targetId: inquiry.id,
     targetName: inquiry.inquiryNo,
     note: `新增询单跟进记录：${inquiry.inquiryNo}。内容：${content}`,
+    beforeData: getInquirySnapshot(inquiry),
+    afterData: {
+      ...getInquirySnapshot(inquiry),
+      followNote: content,
+    },
   });
 
   revalidatePath("/admin");
@@ -315,6 +395,16 @@ export async function toggleImportantCustomerAction(formData: FormData) {
       inquiryNo: true,
       contactName: true,
       companyName: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          companyName: true,
+          phone: true,
+          isImportant: true,
+        },
+      },
     },
   });
 
@@ -348,6 +438,14 @@ export async function toggleImportantCustomerAction(formData: FormData) {
     note: nextImportant
       ? `标记重点客户：${inquiry.contactName}（${inquiry.companyName}），来源询单：${inquiry.inquiryNo}`
       : `取消重点客户：${inquiry.contactName}（${inquiry.companyName}），来源询单：${inquiry.inquiryNo}`,
+    beforeData: {
+      ...inquiry.user,
+      isImportant: inquiry.user.isImportant,
+    },
+    afterData: {
+      ...inquiry.user,
+      isImportant: nextImportant,
+    },
   });
 
   revalidatePath("/admin");

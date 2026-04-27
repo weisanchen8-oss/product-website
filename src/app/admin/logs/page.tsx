@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台操作日志页面。
- * 支持按模块筛选、关键词搜索、分页查看，并导出当前筛选结果。
+ * 支持按模块筛选、关键词搜索、分页查看、导出当前筛选结果，并查看变更详情。
  */
 
 import Link from "next/link";
@@ -245,12 +245,13 @@ export default async function AdminLogsPage({
             <div className="admin-log-table-wrapper">
               <table className="admin-log-table">
                 <colgroup>
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "18%" }} />
-                  <col style={{ width: "30%" }} />
+                  <col style={{ width: "9%" }} />
                   <col style={{ width: "12%" }} />
-                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "27%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
 
                 <thead>
@@ -261,39 +262,57 @@ export default async function AdminLogsPage({
                     <th>操作说明</th>
                     <th>操作人</th>
                     <th>时间</th>
+                    <th>变更</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id}>
-                      <td>
-                        <span className={getModuleClassName(log.module)}>
-                          {getModuleText(log.module)}
-                        </span>
-                      </td>
+                  {logs.map((log) => {
+                    const hasSnapshot = Boolean(log.beforeData || log.afterData);
 
-                      <td>{log.action}</td>
+                    return (
+                      <tr key={log.id}>
+                        <td>
+                          <span className={getModuleClassName(log.module)}>
+                            {getModuleText(log.module)}
+                          </span>
+                        </td>
 
-                      <td>
-                        <Link
-                          href={getAdminLogHref({
-                            module: log.module,
-                            targetId: log.targetId,
-                          })}
-                          className="admin-log-target-link"
-                        >
-                          {log.targetName || "未记录"}
-                        </Link>
-                      </td>
+                        <td>{log.action}</td>
 
-                      <td>{log.note || "无说明"}</td>
+                        <td>
+                          <Link
+                            href={getAdminLogHref({
+                              module: log.module,
+                              targetId: log.targetId,
+                            })}
+                            className="admin-log-target-link"
+                          >
+                            {log.targetName || "未记录"}
+                          </Link>
+                        </td>
 
-                      <td>{log.operatorName || "管理员"}</td>
+                        <td>{log.note || "无说明"}</td>
 
-                      <td>{log.createdAt.toLocaleString("zh-CN")}</td>
-                    </tr>
-                  ))}
+                        <td>{log.operatorName || "管理员"}</td>
+
+                        <td>{log.createdAt.toLocaleString("zh-CN")}</td>
+
+                        <td>
+                          {hasSnapshot ? (
+                            <Link
+                              href={`/admin/logs/${log.id}`}
+                              className="admin-log-change-link"
+                            >
+                              查看变更
+                            </Link>
+                          ) : (
+                            <span className="admin-log-no-change">无快照</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

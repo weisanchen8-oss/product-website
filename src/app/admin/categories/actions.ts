@@ -94,22 +94,17 @@ function getCategorySnapshot(category: {
 }
 
 export async function createCategoryAction(formData: FormData) {
-  const nameValue = formData.get("name");
-  const slugValue = formData.get("slug");
-  const descriptionValue = formData.get("description");
+  const name = String(formData.get("name") ?? "").trim();
+  const slugRaw = String(formData.get("slug") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
   const parentIdValue = formData.get("parentId");
   const sortOrderValue = formData.get("sortOrder");
-  const isActiveValue = formData.get("isActive");
+  const isActive = formData.get("isActive") === "on";
 
-  const name = typeof nameValue === "string" ? nameValue.trim() : "";
-  const slugRaw = typeof slugValue === "string" ? slugValue.trim() : "";
-  const description =
-    typeof descriptionValue === "string" ? descriptionValue.trim() : "";
   const parentId =
     typeof parentIdValue === "string" && parentIdValue
       ? Number(parentIdValue)
       : null;
-  const isActive = isActiveValue === "on";
 
   if (!name) {
     redirect("/admin/categories/new?error=missing-name");
@@ -163,28 +158,23 @@ export async function createCategoryAction(formData: FormData) {
 }
 
 export async function updateCategoryAction(formData: FormData) {
-  const idValue = formData.get("id");
-  const nameValue = formData.get("name");
-  const slugValue = formData.get("slug");
-  const descriptionValue = formData.get("description");
+  const id = Number(formData.get("id"));
+  const name = String(formData.get("name") ?? "").trim();
+  const slugRaw = String(formData.get("slug") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
   const parentIdValue = formData.get("parentId");
   const sortOrderValue = formData.get("sortOrder");
-  const isActiveValue = formData.get("isActive");
+  const isActive = formData.get("isActive") === "on";
 
-  const id = Number(idValue);
-  const name = typeof nameValue === "string" ? nameValue.trim() : "";
-  const slugRaw = typeof slugValue === "string" ? slugValue.trim() : "";
-  const description =
-    typeof descriptionValue === "string" ? descriptionValue.trim() : "";
   const parentId =
     typeof parentIdValue === "string" && parentIdValue
       ? Number(parentIdValue)
       : null;
+
   const sortOrder =
     typeof sortOrderValue === "string" && sortOrderValue.trim()
       ? Number(sortOrderValue)
       : 0;
-  const isActive = isActiveValue === "on";
 
   if (!id || Number.isNaN(id)) {
     throw new Error("无效的分类 ID。");
@@ -249,8 +239,7 @@ export async function updateCategoryAction(formData: FormData) {
 }
 
 export async function deleteCategoryAction(formData: FormData) {
-  const idValue = formData.get("id");
-  const id = Number(idValue);
+  const id = Number(formData.get("id"));
 
   if (!id || Number.isNaN(id)) {
     throw new Error("无效的分类 ID。");
