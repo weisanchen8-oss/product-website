@@ -2,7 +2,7 @@
  * 文件作用：
  * 定义后台操作日志变更详情页。
  * 展示 AdminLog 的 beforeData / afterData 快照对比。
- * 支持分类编辑 / 启用 / 停用的安全回滚。
+ * 支持分类、询单部分低风险操作的安全回滚。
  */
 
 import Link from "next/link";
@@ -10,7 +10,11 @@ import { notFound } from "next/navigation";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { AdminActionToast } from "@/components/admin/admin-action-toast";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
-import { rollbackCategoryLogAction } from "@/app/admin/logs/actions";
+import {
+  rollbackCategoryLogAction,
+  rollbackInquiryLogAction,
+  rollbackProductLogAction,
+} from "@/app/admin/logs/actions";
 import { prisma } from "@/lib/prisma";
 
 type AdminLogDetailPageProps = {
@@ -100,7 +104,7 @@ function getChangedRows(
 
 function getToastMessage(success?: string, error?: string) {
   if (success === "rollback-success") {
-    return "分类已成功回滚。";
+    return "操作已成功回滚。";
   }
 
   switch (error) {
@@ -109,13 +113,15 @@ function getToastMessage(success?: string, error?: string) {
     case "rollback-missing-snapshot":
       return "回滚失败：缺少操作前快照。";
     case "rollback-target-not-found":
-      return "回滚失败：目标分类已不存在。";
+      return "回滚失败：目标数据已不存在。";
     case "rollback-parent-not-found":
       return "回滚失败：原父级分类已不存在。";
     case "rollback-invalid-parent":
       return "回滚失败：分类不能以自身作为父级。";
     case "rollback-slug-conflict":
       return "回滚失败：原 Slug 已被其他分类占用。";
+    case "rollback-category-not-found":
+      return "回滚失败：原产品分类已不存在。";
     default:
       return "";
   }
@@ -129,6 +135,40 @@ function canRollbackCategory(log: {
   return (
     log.module === "category" &&
     ["update", "activate", "deactivate"].includes(log.action) &&
+    Boolean(log.beforeData)
+  );
+}
+
+function canRollbackInquiry(log: {
+  module: string;
+  action: string;
+  beforeData: string | null;
+}) {
+  return (
+    log.module === "inquiry" &&
+    ["status_update", "bulk_status_update", "admin_note_update"].includes(
+      log.action
+    ) &&
+    Boolean(log.beforeData)
+  );
+}
+
+function canRollbackProduct(log: {
+  module: string;
+  action: string;
+  beforeData: string | null;
+}) {
+  return (
+    log.module === "product" &&
+    [
+      "update",
+      "activate",
+      "deactivate",
+      "feature",
+      "unfeature",
+      "hot",
+      "unhot",
+    ].includes(log.action) &&
     Boolean(log.beforeData)
   );
 }
@@ -159,7 +199,12 @@ export default async function AdminLogDetailPage({
   const rows = getChangedRows(beforeData, afterData);
   const changedCount = rows.filter((row) => row.changed).length;
   const toastMessage = getToastMessage(success, error);
-  const rollbackAvailable = canRollbackCategory(log);
+
+  const categoryRollbackAvailable = canRollbackCategory(log);
+  const inquiryRollbackAvailable = canRollbackInquiry(log);
+  const productRollbackAvailable = canRollbackProduct(log);
+  const rollbackAvailable =
+    categoryRollbackAvailable || inquiryRollbackAvailable || productRollbackAvailable;
 
   return (
     <AdminLayout>
@@ -262,11 +307,11 @@ export default async function AdminLogDetailPage({
         <div>
           <h2>安全回滚</h2>
           <p>
-            当前第一版仅支持分类编辑、分类启用、分类停用操作回滚。删除类操作暂不支持回滚。
+            当前支持分类编辑、分类启用/停用、询单状态和询单内部备注回滚。删除类操作暂不支持回滚。
           </p>
         </div>
 
-        {rollbackAvailable ? (
+        {categoryRollbackAvailable ? (
           <form action={rollbackCategoryLogAction}>
             <input type="hidden" name="logId" value={log.id} />
 
@@ -277,11 +322,39 @@ export default async function AdminLogDetailPage({
               回滚到操作前
             </ConfirmSubmitButton>
           </form>
-        ) : (
+        ) : null}
+
+        {inquiryRollbackAvailable ? (
+          <form action={rollbackInquiryLogAction}>
+            <input type="hidden" name="logId" value={log.id} />
+
+            <ConfirmSubmitButton
+              className="danger-button admin-rollback-button"
+              message="确定要将该询单恢复到本次操作之前的状态吗？回滚后系统会自动写入一条新的回滚日志。"
+            >
+              回滚到操作前
+            </ConfirmSubmitButton>
+          </form>
+        ) : null}
+
+        {productRollbackAvailable ? (
+          <form action={rollbackProductLogAction}>
+            <input type="hidden" name="logId" value={log.id} />
+
+            <ConfirmSubmitButton
+              className="danger-button admin-rollback-button"
+              message="确定要将该产品恢复到本次操作之前的状态吗？回滚后系统会自动写入一条新的回滚日志。"
+            >
+              回滚到操作前
+            </ConfirmSubmitButton>
+          </form>
+        ) : null}
+
+        {!rollbackAvailable ? (
           <span className="admin-rollback-disabled">
             当前日志暂不支持回滚
           </span>
-        )}
+        ) : null}
       </section>
     </AdminLayout>
   );

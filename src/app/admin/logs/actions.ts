@@ -4,6 +4,7 @@
  * 当前支持：
  * - 分类编辑 / 启用 / 停用的安全回滚
  * - 询单状态 / 内部备注的安全回滚
+ * - 产品编辑 / 上下架 / 推荐 / 热销的安全回滚
  */
 
 "use server";
@@ -33,6 +34,24 @@ type InquirySnapshot = {
   companyName?: string;
   phone?: string;
   email?: string;
+};
+
+type ProductSnapshot = {
+  id: number;
+  name: string;
+  slug: string;
+  categoryId: number;
+  shortDesc: string;
+  fullDesc: string | null;
+  keywords: string | null;
+  priceText: string;
+  specsJson: string | null;
+  salesCount: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  featuredSort: number;
+  isManualHot: boolean;
+  manualHotSort: number;
 };
 
 function parseCategorySnapshot(value: string | null): CategorySnapshot | null {
@@ -100,6 +119,51 @@ function parseInquirySnapshot(value: string | null): InquirySnapshot | null {
   }
 }
 
+function parseProductSnapshot(value: string | null): ProductSnapshot | null {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value) as Partial<ProductSnapshot>;
+
+    if (
+      typeof parsed.id !== "number" ||
+      typeof parsed.name !== "string" ||
+      typeof parsed.slug !== "string" ||
+      typeof parsed.categoryId !== "number" ||
+      typeof parsed.shortDesc !== "string" ||
+      typeof parsed.priceText !== "string" ||
+      typeof parsed.salesCount !== "number" ||
+      typeof parsed.isActive !== "boolean" ||
+      typeof parsed.isFeatured !== "boolean" ||
+      typeof parsed.featuredSort !== "number" ||
+      typeof parsed.isManualHot !== "boolean" ||
+      typeof parsed.manualHotSort !== "number"
+    ) {
+      return null;
+    }
+
+    return {
+      id: parsed.id,
+      name: parsed.name,
+      slug: parsed.slug,
+      categoryId: parsed.categoryId,
+      shortDesc: parsed.shortDesc,
+      fullDesc: typeof parsed.fullDesc === "string" ? parsed.fullDesc : null,
+      keywords: typeof parsed.keywords === "string" ? parsed.keywords : null,
+      priceText: parsed.priceText,
+      specsJson: typeof parsed.specsJson === "string" ? parsed.specsJson : null,
+      salesCount: parsed.salesCount,
+      isActive: parsed.isActive,
+      isFeatured: parsed.isFeatured,
+      featuredSort: parsed.featuredSort,
+      isManualHot: parsed.isManualHot,
+      manualHotSort: parsed.manualHotSort,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function getInquiryStatusText(status: string) {
   switch (status) {
     case "pending":
@@ -148,6 +212,26 @@ function getInquirySnapshot(inquiry: {
     companyName: inquiry.companyName,
     phone: inquiry.phone,
     email: inquiry.email,
+  };
+}
+
+function getProductSnapshot(product: ProductSnapshot) {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    categoryId: product.categoryId,
+    shortDesc: product.shortDesc,
+    fullDesc: product.fullDesc,
+    keywords: product.keywords,
+    priceText: product.priceText,
+    specsJson: product.specsJson,
+    salesCount: product.salesCount,
+    isActive: product.isActive,
+    isFeatured: product.isFeatured,
+    featuredSort: product.featuredSort,
+    isManualHot: product.isManualHot,
+    manualHotSort: product.manualHotSort,
   };
 }
 
@@ -358,6 +442,146 @@ export async function rollbackInquiryLogAction(formData: FormData) {
   revalidatePath(`/admin/logs/${logId}`);
   revalidatePath("/admin/inquiries");
   revalidatePath(`/admin/inquiries/${restoredInquiry.id}`);
+
+  redirect(`/admin/logs/${logId}?success=rollback-success`);
+}
+
+export async function rollbackProductLogAction(formData: FormData) {
+  const logId = Number(formData.get("logId"));
+
+  if (!logId || Number.isNaN(logId)) {
+    throw new Error("无效的日志 ID。");
+  }
+
+  const log = await prisma.adminLog.findUnique({
+    where: { id: logId },
+  });
+
+  if (!log) {
+    redirect("/admin/logs?error=log-not-found");
+  }
+
+  if (log.module !== "product") {
+    redirect(`/admin/logs/${logId}?error=rollback-unsupported`);
+  }
+
+  if (
+    ![
+      "update",
+      "activate",
+      "deactivate",
+      "feature",
+      "unfeature",
+      "hot",
+      "unhot",
+    ].includes(log.action)
+  ) {
+    redirect(`/admin/logs/${logId}?error=rollback-unsupported`);
+  }
+
+  const beforeData = parseProductSnapshot(log.beforeData);
+
+  if (!beforeData) {
+    redirect(`/admin/logs/${logId}?error=rollback-missing-snapshot`);
+  }
+
+  const currentProduct = await prisma.product.findUnique({
+    where: { id: beforeData.id },
+  });
+
+  if (!currentProduct) {
+    redirect(`/admin/logs/${logId}?error=rollback-target-not-found`);
+  }
+
+  const category = await prisma.category.findUnique({
+    where: { id: beforeData.categoryId },
+  });
+
+  if (!category) {
+    redirect(`/admin/logs/${logId}?error=rollback-category-not-found`);
+  }
+
+  const sameSlugProduct = await prisma.product.findUnique({
+    where: { slug: beforeData.slug },
+  });
+
+  if (sameSlugProduct && sameSlugProduct.id !== beforeData.id) {
+    redirect(`/admin/logs/${logId}?error=rollback-slug-conflict`);
+  }
+
+  const currentSnapshot = getProductSnapshot({
+    id: currentProduct.id,
+    name: currentProduct.name,
+    slug: currentProduct.slug,
+    categoryId: currentProduct.categoryId,
+    shortDesc: currentProduct.shortDesc,
+    fullDesc: currentProduct.fullDesc,
+    keywords: currentProduct.keywords,
+    priceText: currentProduct.priceText,
+    specsJson: currentProduct.specsJson,
+    salesCount: currentProduct.salesCount,
+    isActive: currentProduct.isActive,
+    isFeatured: currentProduct.isFeatured,
+    featuredSort: currentProduct.featuredSort,
+    isManualHot: currentProduct.isManualHot,
+    manualHotSort: currentProduct.manualHotSort,
+  });
+
+  const restoredProduct = await prisma.product.update({
+    where: { id: beforeData.id },
+    data: {
+      name: beforeData.name,
+      slug: beforeData.slug,
+      categoryId: beforeData.categoryId,
+      shortDesc: beforeData.shortDesc,
+      fullDesc: beforeData.fullDesc,
+      keywords: beforeData.keywords,
+      priceText: beforeData.priceText,
+      specsJson: beforeData.specsJson,
+      salesCount: beforeData.salesCount,
+      isActive: beforeData.isActive,
+      isFeatured: beforeData.isFeatured,
+      featuredSort: beforeData.featuredSort,
+      isManualHot: beforeData.isManualHot,
+      manualHotSort: beforeData.manualHotSort,
+    },
+  });
+
+  await createAdminLog({
+    module: "product",
+    action: "rollback",
+    targetId: restoredProduct.id,
+    targetName: restoredProduct.name,
+    note: `回滚产品操作：${restoredProduct.name}，来源日志 #${log.id}`,
+    beforeData: currentSnapshot,
+    afterData: getProductSnapshot({
+      id: restoredProduct.id,
+      name: restoredProduct.name,
+      slug: restoredProduct.slug,
+      categoryId: restoredProduct.categoryId,
+      shortDesc: restoredProduct.shortDesc,
+      fullDesc: restoredProduct.fullDesc,
+      keywords: restoredProduct.keywords,
+      priceText: restoredProduct.priceText,
+      specsJson: restoredProduct.specsJson,
+      salesCount: restoredProduct.salesCount,
+      isActive: restoredProduct.isActive,
+      isFeatured: restoredProduct.isFeatured,
+      featuredSort: restoredProduct.featuredSort,
+      isManualHot: restoredProduct.isManualHot,
+      manualHotSort: restoredProduct.manualHotSort,
+    }),
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/logs");
+  revalidatePath(`/admin/logs/${logId}`);
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${restoredProduct.id}`);
+  revalidatePath("/products");
+  revalidatePath(`/product/${currentProduct.slug}`);
+  revalidatePath(`/product/${restoredProduct.slug}`);
+  revalidatePath("/");
 
   redirect(`/admin/logs/${logId}?success=rollback-success`);
 }
