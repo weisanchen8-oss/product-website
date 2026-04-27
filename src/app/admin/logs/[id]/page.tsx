@@ -2,16 +2,24 @@
  * 文件作用：
  * 定义后台操作日志变更详情页。
  * 展示 AdminLog 的 beforeData / afterData 快照对比。
+ * 支持分类编辑 / 启用 / 停用的安全回滚。
  */
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { AdminActionToast } from "@/components/admin/admin-action-toast";
+import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
+import { rollbackCategoryLogAction } from "@/app/admin/logs/actions";
 import { prisma } from "@/lib/prisma";
 
 type AdminLogDetailPageProps = {
   params: Promise<{
     id: string;
+  }>;
+  searchParams: Promise<{
+    success?: string;
+    error?: string;
   }>;
 };
 
@@ -35,9 +43,7 @@ function getModuleText(moduleName: string) {
 }
 
 function parseSnapshot(value: string | null): SnapshotRecord | null {
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
   try {
     const parsed = JSON.parse(value);
@@ -46,13 +52,9 @@ function parseSnapshot(value: string | null): SnapshotRecord | null {
       return parsed as SnapshotRecord;
     }
 
-    return {
-      value: parsed,
-    };
+    return { value: parsed };
   } catch {
-    return {
-      raw: value,
-    };
+    return { raw: value };
   }
 }
 
@@ -96,10 +98,48 @@ function getChangedRows(
   });
 }
 
+function getToastMessage(success?: string, error?: string) {
+  if (success === "rollback-success") {
+    return "分类已成功回滚。";
+  }
+
+  switch (error) {
+    case "rollback-unsupported":
+      return "当前日志暂不支持回滚。";
+    case "rollback-missing-snapshot":
+      return "回滚失败：缺少操作前快照。";
+    case "rollback-target-not-found":
+      return "回滚失败：目标分类已不存在。";
+    case "rollback-parent-not-found":
+      return "回滚失败：原父级分类已不存在。";
+    case "rollback-invalid-parent":
+      return "回滚失败：分类不能以自身作为父级。";
+    case "rollback-slug-conflict":
+      return "回滚失败：原 Slug 已被其他分类占用。";
+    default:
+      return "";
+  }
+}
+
+function canRollbackCategory(log: {
+  module: string;
+  action: string;
+  beforeData: string | null;
+}) {
+  return (
+    log.module === "category" &&
+    ["update", "activate", "deactivate"].includes(log.action) &&
+    Boolean(log.beforeData)
+  );
+}
+
 export default async function AdminLogDetailPage({
   params,
+  searchParams,
 }: AdminLogDetailPageProps) {
   const { id } = await params;
+  const { success, error } = await searchParams;
+
   const logId = Number(id);
 
   if (!logId || Number.isNaN(logId)) {
@@ -107,9 +147,7 @@ export default async function AdminLogDetailPage({
   }
 
   const log = await prisma.adminLog.findUnique({
-    where: {
-      id: logId,
-    },
+    where: { id: logId },
   });
 
   if (!log) {
@@ -120,9 +158,13 @@ export default async function AdminLogDetailPage({
   const afterData = parseSnapshot(log.afterData);
   const rows = getChangedRows(beforeData, afterData);
   const changedCount = rows.filter((row) => row.changed).length;
+  const toastMessage = getToastMessage(success, error);
+  const rollbackAvailable = canRollbackCategory(log);
 
   return (
     <AdminLayout>
+      {toastMessage ? <AdminActionToast message={toastMessage} /> : null}
+
       <div className="admin-log-detail-header">
         <div>
           <h1>日志变更详情</h1>
@@ -209,8 +251,36 @@ export default async function AdminLogDetailPage({
         ) : (
           <div className="admin-empty-state">
             <h3>暂无快照数据</h3>
-            <p>旧日志可能没有记录 beforeData / afterData，因此无法查看变更详情。</p>
+            <p>
+              旧日志可能没有记录 beforeData / afterData，因此无法查看变更详情。
+            </p>
           </div>
+        )}
+      </section>
+
+      <section className="admin-log-detail-card admin-rollback-card">
+        <div>
+          <h2>安全回滚</h2>
+          <p>
+            当前第一版仅支持分类编辑、分类启用、分类停用操作回滚。删除类操作暂不支持回滚。
+          </p>
+        </div>
+
+        {rollbackAvailable ? (
+          <form action={rollbackCategoryLogAction}>
+            <input type="hidden" name="logId" value={log.id} />
+
+            <ConfirmSubmitButton
+              className="danger-button admin-rollback-button"
+              message="确定要将该分类恢复到本次操作之前的状态吗？回滚后系统会自动写入一条新的回滚日志。"
+            >
+              回滚到操作前
+            </ConfirmSubmitButton>
+          </form>
+        ) : (
+          <span className="admin-rollback-disabled">
+            当前日志暂不支持回滚
+          </span>
         )}
       </section>
     </AdminLayout>
