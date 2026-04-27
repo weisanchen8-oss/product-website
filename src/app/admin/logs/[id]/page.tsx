@@ -348,7 +348,7 @@ export default async function AdminLogDetailPage({
               回滚到操作前
             </ConfirmSubmitButton>
           </form>
-        ) : null}
+        ) : null} 
 
         {!rollbackAvailable ? (
           <span className="admin-rollback-disabled">
