@@ -4766,3 +4766,68 @@ input {
     flex-direction: column;
   }
 }
+
+.admin-rollback-warning {
+  background: #fff7e6;
+  color: #d46b08;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.admin-rollback-chain-card {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.admin-rollback-chain-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-rollback-chain-item {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.admin-rollback-chain-item.warning {
+  background: #fffbeb;
+}
+
+.admin-rollback-chain-item span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-rollback-chain-item strong {
+  display: block;
+  color: #020617;
+  font-size: 15px;
+}
+
+.admin-rollback-chain-item p {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-rollback-chain-item a {
+  color: #1d4ed8;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.admin-rollback-chain-item a:hover {
+  text-decoration: underline;
+}
+
+.admin-rollback-chain-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}

@@ -2,7 +2,8 @@
  * 文件作用：
  * 定义后台操作日志变更详情页。
  * 展示 AdminLog 的 beforeData / afterData 快照对比。
- * 支持分类、询单部分低风险操作的安全回滚。
+ * 支持分类、询单、产品部分低风险操作的安全回滚。
+ * 支持回滚链提示。
  */
 
 import Link from "next/link";
@@ -108,6 +109,8 @@ function getToastMessage(success?: string, error?: string) {
   }
 
   switch (error) {
+    case "already-rolled-back":
+      return "该操作已经被回滚过，无法重复执行。";
     case "rollback-unsupported":
       return "当前日志暂不支持回滚。";
     case "rollback-missing-snapshot":
@@ -194,17 +197,38 @@ export default async function AdminLogDetailPage({
     notFound();
   }
 
+  const rollbackLogs = await prisma.adminLog.findMany({
+    where: {
+      rollbackFromLogId: log.id,
+    },
+    orderBy: [{ createdAt: "desc" }],
+  });
+
+  const sourceRollbackLog = log.rollbackFromLogId
+    ? await prisma.adminLog.findUnique({
+        where: {
+          id: log.rollbackFromLogId,
+        },
+      })
+    : null;
+
   const beforeData = parseSnapshot(log.beforeData);
   const afterData = parseSnapshot(log.afterData);
   const rows = getChangedRows(beforeData, afterData);
   const changedCount = rows.filter((row) => row.changed).length;
   const toastMessage = getToastMessage(success, error);
 
+  const alreadyRolledBack = Boolean(log.rolledBackAt);
+
   const categoryRollbackAvailable = canRollbackCategory(log);
   const inquiryRollbackAvailable = canRollbackInquiry(log);
   const productRollbackAvailable = canRollbackProduct(log);
+
   const rollbackAvailable =
-    categoryRollbackAvailable || inquiryRollbackAvailable || productRollbackAvailable;
+    !alreadyRolledBack &&
+    (categoryRollbackAvailable ||
+      inquiryRollbackAvailable ||
+      productRollbackAvailable);
 
   return (
     <AdminLayout>
@@ -260,6 +284,59 @@ export default async function AdminLogDetailPage({
         </div>
       </section>
 
+      {(sourceRollbackLog || rollbackLogs.length > 0 || alreadyRolledBack) ? (
+        <section className="admin-log-detail-card admin-rollback-chain-card">
+          <div className="admin-log-detail-table-header">
+            <h2>回滚链路</h2>
+            <p>查看该日志与其他回滚日志之间的来源关系。</p>
+          </div>
+
+          <div className="admin-rollback-chain-list">
+            {sourceRollbackLog ? (
+              <div className="admin-rollback-chain-item">
+                <span>当前日志是回滚操作</span>
+                <strong>
+                  来源日志：
+                  <Link href={`/admin/logs/${sourceRollbackLog.id}`}>
+                    #{sourceRollbackLog.id}
+                  </Link>
+                </strong>
+                <p>{sourceRollbackLog.note || "无说明"}</p>
+              </div>
+            ) : null}
+
+            {alreadyRolledBack ? (
+              <div className="admin-rollback-chain-item warning">
+                <span>当前日志已被回滚</span>
+                <strong>
+                  回滚时间：{log.rolledBackAt?.toLocaleString("zh-CN")}
+                </strong>
+                <p>该日志已不能再次执行回滚。</p>
+              </div>
+            ) : null}
+
+            {rollbackLogs.length > 0 ? (
+              <div className="admin-rollback-chain-item">
+                <span>回滚执行记录</span>
+                <strong>共 {rollbackLogs.length} 条回滚日志</strong>
+
+                <div className="admin-rollback-chain-links">
+                  {rollbackLogs.map((rollbackLog) => (
+                    <Link
+                      key={rollbackLog.id}
+                      href={`/admin/logs/${rollbackLog.id}`}
+                    >
+                      #{rollbackLog.id} ·{" "}
+                      {rollbackLog.createdAt.toLocaleString("zh-CN")}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       <section className="admin-log-detail-card">
         <div className="admin-log-detail-table-header">
           <h2>字段变更对比</h2>
@@ -307,11 +384,17 @@ export default async function AdminLogDetailPage({
         <div>
           <h2>安全回滚</h2>
           <p>
-            当前支持分类编辑、分类启用/停用、询单状态和询单内部备注回滚。删除类操作暂不支持回滚。
+            当前支持分类编辑、分类启用/停用、询单状态、询单内部备注、产品编辑、产品上下架、推荐和热销回滚。删除类操作暂不支持回滚。
           </p>
         </div>
 
-        {categoryRollbackAvailable ? (
+        {alreadyRolledBack ? (
+          <div className="admin-rollback-disabled">
+            ⚠️ 该操作已在 {log.rolledBackAt?.toLocaleString("zh-CN")} 被回滚
+          </div>
+        ) : null}
+
+        {rollbackAvailable && categoryRollbackAvailable ? (
           <form action={rollbackCategoryLogAction}>
             <input type="hidden" name="logId" value={log.id} />
 
@@ -324,7 +407,7 @@ export default async function AdminLogDetailPage({
           </form>
         ) : null}
 
-        {inquiryRollbackAvailable ? (
+        {rollbackAvailable && inquiryRollbackAvailable ? (
           <form action={rollbackInquiryLogAction}>
             <input type="hidden" name="logId" value={log.id} />
 
@@ -337,7 +420,7 @@ export default async function AdminLogDetailPage({
           </form>
         ) : null}
 
-        {productRollbackAvailable ? (
+        {rollbackAvailable && productRollbackAvailable ? (
           <form action={rollbackProductLogAction}>
             <input type="hidden" name="logId" value={log.id} />
 
@@ -348,7 +431,7 @@ export default async function AdminLogDetailPage({
               回滚到操作前
             </ConfirmSubmitButton>
           </form>
-        ) : null} 
+        ) : null}
 
         {!rollbackAvailable ? (
           <span className="admin-rollback-disabled">
@@ -359,4 +442,3 @@ export default async function AdminLogDetailPage({
     </AdminLayout>
   );
 }
-

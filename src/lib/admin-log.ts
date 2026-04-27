@@ -1,7 +1,8 @@
 /**
  * 文件作用：
  * 封装后台通用操作日志写入逻辑。
- * 支持记录操作前后数据快照，为后续“操作回溯/查看变更”做准备。
+ * 支持记录操作前后数据快照，以及回滚来源日志 ID。
+ * 日志写入失败时，不阻断主业务操作。
  */
 
 import { prisma } from "@/lib/prisma";
@@ -15,6 +16,7 @@ type AdminLogInput = {
   operatorName?: string;
   beforeData?: unknown;
   afterData?: unknown;
+  rollbackFromLogId?: number;
 };
 
 function toSnapshot(value: unknown) {
@@ -40,17 +42,23 @@ export async function createAdminLog({
   operatorName = "管理员",
   beforeData,
   afterData,
+  rollbackFromLogId,
 }: AdminLogInput) {
-  await prisma.adminLog.create({
-    data: {
-      module,
-      action,
-      targetId,
-      targetName,
-      note,
-      operatorName,
-      beforeData: toSnapshot(beforeData),
-      afterData: toSnapshot(afterData),
-    },
-  });
+  try {
+    await prisma.adminLog.create({
+      data: {
+        module,
+        action,
+        targetId,
+        targetName,
+        note,
+        operatorName,
+        beforeData: toSnapshot(beforeData),
+        afterData: toSnapshot(afterData),
+        rollbackFromLogId,
+      },
+    });
+  } catch (error) {
+    console.error("AdminLog 写入失败：", error);
+  }
 }

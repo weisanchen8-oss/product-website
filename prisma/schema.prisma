@@ -167,14 +167,16 @@ model SiteContent {
 }
 
 model AdminLog {
-  id           Int      @id @default(autoincrement())
-  module       String
-  action       String
-  targetId     Int?
-  targetName   String?
-  operatorName String?
-  note         String?
-  beforeData   String?
-  afterData    String?
-  createdAt    DateTime @default(now())
+  id                Int       @id @default(autoincrement())
+  module            String
+  action            String
+  targetId          Int?
+  targetName        String?
+  operatorName      String?
+  note              String?
+  beforeData        String?
+  afterData         String?
+  rolledBackAt      DateTime?
+  rollbackFromLogId Int?
+  createdAt         DateTime  @default(now())
 }
