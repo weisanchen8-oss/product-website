@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台产品管理相关的服务端写入动作。
- * 支持产品新增、编辑、图片管理、批量管理，并写入 AdminLog 操作日志。
+ * 支持产品新增、编辑、图片管理、批量管理，并写入 AdminLog 操作日志与 beforeData / afterData 快照。
  */
 
 "use server";
@@ -219,6 +219,66 @@ function revalidateProductPaths(productSlug?: string, productId?: number) {
   }
 }
 
+function getProductSnapshot(product: {
+  id: number;
+  name: string;
+  slug: string;
+  categoryId: number;
+  shortDesc: string;
+  fullDesc: string | null;
+  keywords: string | null;
+  priceText: string;
+  specsJson: string | null;
+  salesCount: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  featuredSort: number;
+  isManualHot: boolean;
+  manualHotSort: number;
+}) {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    categoryId: product.categoryId,
+    shortDesc: product.shortDesc,
+    fullDesc: product.fullDesc,
+    keywords: product.keywords,
+    priceText: product.priceText,
+    specsJson: product.specsJson ?? "",
+    salesCount: product.salesCount,
+    isActive: product.isActive,
+    isFeatured: product.isFeatured,
+    featuredSort: product.featuredSort,
+    isManualHot: product.isManualHot,
+    manualHotSort: product.manualHotSort,
+  };
+}
+
+function getImageSnapshot(image: {
+  id: number;
+  productId: number;
+  originalUrl: string;
+  processedUrl: string | null;
+  isProcessed: boolean;
+  processingStatus: string;
+  logoApplied: boolean;
+  isCover: boolean;
+  sortOrder: number;
+}) {
+  return {
+    id: image.id,
+    productId: image.productId,
+    originalUrl: image.originalUrl,
+    processedUrl: image.processedUrl,
+    isProcessed: image.isProcessed,
+    processingStatus: image.processingStatus,
+    logoApplied: image.logoApplied,
+    isCover: image.isCover,
+    sortOrder: image.sortOrder,
+  };
+}
+
 export async function createProductAction(formData: FormData) {
   let payload: Awaited<ReturnType<typeof getProductPayload>>;
 
@@ -239,6 +299,8 @@ export async function createProductAction(formData: FormData) {
       targetId: product.id,
       targetName: product.name,
       note: `新增产品：${product.name}`,
+      beforeData: null,
+      afterData: getProductSnapshot(product),
     });
   } catch {
     redirect("/admin/products/new?error=create-failed");
@@ -258,11 +320,6 @@ export async function updateProductAction(formData: FormData) {
 
   const oldProduct = await prisma.product.findUnique({
     where: { id },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-    },
   });
 
   if (!oldProduct) {
@@ -289,6 +346,8 @@ export async function updateProductAction(formData: FormData) {
       targetId: product.id,
       targetName: product.name,
       note: `编辑产品：${oldProduct.name} → ${product.name}`,
+      beforeData: getProductSnapshot(oldProduct),
+      afterData: getProductSnapshot(product),
     });
   } catch {
     redirect(`/admin/products/${id}?error=update-failed`);
@@ -341,7 +400,7 @@ export async function uploadProductImageAction(formData: FormData) {
   const publicUrl = `/uploads/products/${fileName}`;
   const shouldBeCover = product.images.length === 0;
 
-  await prisma.productImage.create({
+  const image = await prisma.productImage.create({
     data: {
       productId,
       originalUrl: publicUrl,
@@ -360,6 +419,14 @@ export async function uploadProductImageAction(formData: FormData) {
     targetId: product.id,
     targetName: product.name,
     note: `上传产品图片：${product.name}`,
+    beforeData: {
+      product: getProductSnapshot(product),
+      image: null,
+    },
+    afterData: {
+      product: getProductSnapshot(product),
+      image: getImageSnapshot(image),
+    },
   });
 
   revalidateProductPaths(product.slug, productId);
@@ -387,6 +454,11 @@ export async function setProductCoverImageAction(formData: FormData) {
     redirect("/admin/products?error=product-not-found");
   }
 
+  const oldImages = await prisma.productImage.findMany({
+    where: { productId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
   await prisma.$transaction([
     prisma.productImage.updateMany({
       where: { productId },
@@ -398,12 +470,25 @@ export async function setProductCoverImageAction(formData: FormData) {
     }),
   ]);
 
+  const newImages = await prisma.productImage.findMany({
+    where: { productId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
   await createAdminLog({
     module: "product",
     action: "cover_update",
     targetId: product.id,
     targetName: product.name,
     note: `设置产品封面图：${product.name}`,
+    beforeData: {
+      product: getProductSnapshot(product),
+      images: oldImages.map(getImageSnapshot),
+    },
+    afterData: {
+      product: getProductSnapshot(product),
+      images: newImages.map(getImageSnapshot),
+    },
   });
 
   revalidateProductPaths(product.slug, productId);
@@ -436,6 +521,7 @@ export async function deleteProductImageAction(formData: FormData) {
 
   const wasCover = image.isCover;
   const imageUrl = image.originalUrl;
+  const beforeImageSnapshot = getImageSnapshot(image);
 
   await prisma.productImage.delete({
     where: { id: imageId },
@@ -457,12 +543,25 @@ export async function deleteProductImageAction(formData: FormData) {
     }
   }
 
+  const remainingImages = await prisma.productImage.findMany({
+    where: { productId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
   await createAdminLog({
     module: "product",
     action: "image_delete",
     targetId: image.product.id,
     targetName: image.product.name,
     note: `删除产品图片：${image.product.name}`,
+    beforeData: {
+      product: getProductSnapshot(image.product),
+      deletedImage: beforeImageSnapshot,
+    },
+    afterData: {
+      product: getProductSnapshot(image.product),
+      images: remainingImages.map(getImageSnapshot),
+    },
   });
 
   revalidateProductPaths(image.product.slug, productId);
@@ -543,6 +642,11 @@ export async function bulkManageProductsAction(formData: FormData) {
           targetId: product.id,
           targetName: product.name,
           note: `批量删除产品：${product.name}`,
+          beforeData: {
+            product: getProductSnapshot(product),
+            images: product.images.map(getImageSnapshot),
+          },
+          afterData: null,
         })
       )
     );
@@ -616,6 +720,11 @@ export async function bulkManageProductsAction(formData: FormData) {
         targetId: product.id,
         targetName: product.name,
         note: `${matchedAction.actionText}：${product.name}`,
+        beforeData: getProductSnapshot(product),
+        afterData: {
+          ...getProductSnapshot(product),
+          ...matchedAction.data,
+        },
       })
     )
   );

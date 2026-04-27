@@ -1,32 +1,29 @@
 /**
  * 文件作用：
- * 定义后台操作日志页面。
- * 支持按模块筛选、关键词搜索、分页查看、导出当前筛选结果，并查看变更详情。
+ * 定义后台操作日志变更详情页。
+ * 展示 AdminLog 的 beforeData / afterData 快照对比。
+ * 支持分类编辑 / 启用 / 停用的安全回滚。
  */
 
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
+import { notFound } from "next/navigation";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { AdminActionToast } from "@/components/admin/admin-action-toast";
+import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
+import { rollbackCategoryLogAction } from "@/app/admin/logs/actions";
 import { prisma } from "@/lib/prisma";
 
-type AdminLogsPageProps = {
+type AdminLogDetailPageProps = {
+  params: Promise<{
+    id: string;
+  }>;
   searchParams: Promise<{
-    module?: string;
-    q?: string;
-    page?: string;
+    success?: string;
+    error?: string;
   }>;
 };
 
-const PAGE_SIZE = 20;
-
-const MODULE_OPTIONS = [
-  { value: "all", label: "全部" },
-  { value: "product", label: "产品" },
-  { value: "category", label: "分类" },
-  { value: "inquiry", label: "询单" },
-  { value: "customer", label: "客户" },
-  { value: "system", label: "系统" },
-];
+type SnapshotRecord = Record<string, unknown>;
 
 function getModuleText(moduleName: string) {
   switch (moduleName) {
@@ -45,324 +42,253 @@ function getModuleText(moduleName: string) {
   }
 }
 
-function getModuleClassName(moduleName: string) {
-  switch (moduleName) {
-    case "product":
-      return "admin-log-module admin-log-product";
-    case "category":
-      return "admin-log-module admin-log-category";
-    case "inquiry":
-      return "admin-log-module admin-log-inquiry";
-    case "customer":
-      return "admin-log-module admin-log-customer";
-    case "system":
-      return "admin-log-module admin-log-system";
+function parseSnapshot(value: string | null): SnapshotRecord | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as SnapshotRecord;
+    }
+
+    return {
+      value: parsed,
+    };
+  } catch {
+    return {
+      raw: value,
+    };
+  }
+}
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "空";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "是" : "否";
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function getChangedRows(
+  beforeData: SnapshotRecord | null,
+  afterData: SnapshotRecord | null
+) {
+  const keys = Array.from(
+    new Set([
+      ...Object.keys(beforeData || {}),
+      ...Object.keys(afterData || {}),
+    ])
+  );
+
+  return keys.map((key) => {
+    const beforeValue = beforeData ? beforeData[key] : undefined;
+    const afterValue = afterData ? afterData[key] : undefined;
+
+    return {
+      key,
+      beforeValue,
+      afterValue,
+      changed: formatValue(beforeValue) !== formatValue(afterValue),
+    };
+  });
+}
+
+function getToastMessage(success?: string, error?: string) {
+  if (success === "rollback-success") {
+    return "分类已成功回滚。";
+  }
+
+  switch (error) {
+    case "rollback-unsupported":
+      return "当前日志暂不支持回滚。";
+    case "rollback-missing-snapshot":
+      return "回滚失败：缺少操作前快照。";
+    case "rollback-target-not-found":
+      return "回滚失败：目标分类已不存在。";
+    case "rollback-parent-not-found":
+      return "回滚失败：原父级分类已不存在。";
+    case "rollback-invalid-parent":
+      return "回滚失败：分类不能以自身作为父级。";
+    case "rollback-slug-conflict":
+      return "回滚失败：原 Slug 已被其他分类占用。";
     default:
-      return "admin-log-module";
+      return "";
   }
 }
 
-function getAdminLogHref(log: { module: string; targetId: number | null }) {
-  if (log.module === "product" && log.targetId) {
-    return `/admin/products/${log.targetId}`;
-  }
-
-  if (log.module === "category" && log.targetId) {
-    return `/admin/categories/${log.targetId}`;
-  }
-
-  if (log.module === "inquiry" && log.targetId) {
-    return `/admin/inquiries/${log.targetId}`;
-  }
-
-  if (log.module === "customer") {
-    return "/admin/inquiries?status=important";
-  }
-
-  return "/admin";
-}
-
-function buildLogWhere(moduleFilter: string, keyword: string) {
-  const whereClause: Prisma.AdminLogWhereInput = {};
-
-  if (moduleFilter !== "all") {
-    whereClause.module = moduleFilter;
-  }
-
-  if (keyword) {
-    whereClause.OR = [
-      { action: { contains: keyword } },
-      { targetName: { contains: keyword } },
-      { operatorName: { contains: keyword } },
-      { note: { contains: keyword } },
-    ];
-  }
-
-  return whereClause;
-}
-
-function buildHref(params: {
-  moduleFilter: string;
-  keyword: string;
-  page?: number;
-  includePage?: boolean;
+function canRollbackCategory(log: {
+  module: string;
+  action: string;
+  beforeData: string | null;
 }) {
-  const searchParams = new URLSearchParams();
-
-  if (params.moduleFilter !== "all") {
-    searchParams.set("module", params.moduleFilter);
-  }
-
-  if (params.keyword) {
-    searchParams.set("q", params.keyword);
-  }
-
-  if (params.includePage && params.page && params.page > 1) {
-    searchParams.set("page", String(params.page));
-  }
-
-  const query = searchParams.toString();
-
-  return `/admin/logs${query ? `?${query}` : ""}`;
+  return (
+    log.module === "category" &&
+    ["update", "activate", "deactivate"].includes(log.action) &&
+    Boolean(log.beforeData)
+  );
 }
 
-export default async function AdminLogsPage({
+export default async function AdminLogDetailPage({
+  params,
   searchParams,
-}: AdminLogsPageProps) {
-  const {
-    module: moduleFilter = "all",
-    q = "",
-    page = "1",
-  } = await searchParams;
+}: AdminLogDetailPageProps) {
+  const { id } = await params;
+  const { success, error } = await searchParams;
 
-  const keyword = q.trim();
-  const currentPage = Math.max(1, Number(page) || 1);
-  const skip = (currentPage - 1) * PAGE_SIZE;
+  const logId = Number(id);
 
-  const whereClause = buildLogWhere(moduleFilter, keyword);
-
-  const [logs, totalCount] = await Promise.all([
-    prisma.adminLog.findMany({
-      where: whereClause,
-      orderBy: [{ createdAt: "desc" }],
-      skip,
-      take: PAGE_SIZE,
-    }),
-    prisma.adminLog.count({
-      where: whereClause,
-    }),
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-
-  const exportParams = new URLSearchParams();
-
-  if (moduleFilter !== "all") {
-    exportParams.set("module", moduleFilter);
+  if (!logId || Number.isNaN(logId)) {
+    notFound();
   }
 
-  if (keyword) {
-    exportParams.set("q", keyword);
+  const log = await prisma.adminLog.findUnique({
+    where: {
+      id: logId,
+    },
+  });
+
+  if (!log) {
+    notFound();
   }
 
-  const exportHref = `/admin/logs/export${
-    exportParams.toString() ? `?${exportParams.toString()}` : ""
-  }`;
+  const beforeData = parseSnapshot(log.beforeData);
+  const afterData = parseSnapshot(log.afterData);
+  const rows = getChangedRows(beforeData, afterData);
+  const changedCount = rows.filter((row) => row.changed).length;
+  const toastMessage = getToastMessage(success, error);
+  const rollbackAvailable = canRollbackCategory(log);
 
   return (
     <AdminLayout>
-      <div className="admin-log-header">
+      {toastMessage ? <AdminActionToast message={toastMessage} /> : null}
+
+      <div className="admin-log-detail-header">
         <div>
-          <h1>操作日志</h1>
-          <p>查看产品、分类、询单和客户标记相关的后台操作记录。</p>
+          <h1>日志变更详情</h1>
+          <p>查看本次后台操作前后的数据快照。</p>
         </div>
 
-        <Link href={exportHref} className="admin-export-button">
-          导出 Excel
+        <Link href="/admin/logs" className="secondary-button">
+          返回操作日志
         </Link>
       </div>
 
-      <section className="admin-log-toolbar">
-        <form className="admin-log-search-form">
-          <input
-            name="q"
-            type="search"
-            defaultValue={keyword}
-            placeholder="搜索操作内容、目标名称或操作人"
-          />
+      <section className="admin-log-detail-card">
+        <div className="admin-log-detail-summary">
+          <div>
+            <span>模块</span>
+            <strong>{getModuleText(log.module)}</strong>
+          </div>
 
-          <input type="hidden" name="module" value={moduleFilter} />
+          <div>
+            <span>操作类型</span>
+            <strong>{log.action}</strong>
+          </div>
 
-          <button type="submit" className="admin-search-button">
-            搜索
-          </button>
+          <div>
+            <span>目标对象</span>
+            <strong>{log.targetName || "未记录"}</strong>
+          </div>
 
-          <Link href="/admin/logs" className="admin-reset-link">
-            重置
-          </Link>
-        </form>
+          <div>
+            <span>操作人</span>
+            <strong>{log.operatorName || "管理员"}</strong>
+          </div>
 
-        <div className="admin-log-filter-row">
-          {MODULE_OPTIONS.map((option) => {
-            const href =
-              option.value === "all"
-                ? keyword
-                  ? `/admin/logs?q=${encodeURIComponent(keyword)}`
-                  : "/admin/logs"
-                : `/admin/logs?module=${option.value}${
-                    keyword ? `&q=${encodeURIComponent(keyword)}` : ""
-                  }`;
+          <div>
+            <span>操作时间</span>
+            <strong>{log.createdAt.toLocaleString("zh-CN")}</strong>
+          </div>
 
-            return (
-              <Link
-                key={option.value}
-                href={href}
-                className={
-                  moduleFilter === option.value
-                    ? "admin-filter-pill admin-filter-pill-active"
-                    : "admin-filter-pill"
-                }
-              >
-                {option.label}
-              </Link>
-            );
-          })}
+          <div>
+            <span>变更字段数</span>
+            <strong>{changedCount}</strong>
+          </div>
+
+          <div className="admin-log-detail-summary-full">
+            <span>操作说明</span>
+            <strong>{log.note || "无说明"}</strong>
+          </div>
         </div>
       </section>
 
-      <section className="admin-log-table-card">
-        <div className="admin-log-table-header">
-          <div>
-            <h2>日志列表</h2>
-            <p>
-              共 {totalCount} 条记录，当前第 {currentPage} / {totalPages} 页
-            </p>
-          </div>
+      <section className="admin-log-detail-card">
+        <div className="admin-log-detail-table-header">
+          <h2>字段变更对比</h2>
+          <p>高亮行表示该字段在本次操作中发生变化。</p>
         </div>
 
-        {logs.length > 0 ? (
-          <>
-            <div className="admin-log-table-wrapper">
-              <table className="admin-log-table">
-                <colgroup>
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "27%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "15%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
+        {rows.length > 0 ? (
+          <div className="admin-log-detail-table-wrapper">
+            <table className="admin-log-detail-table">
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>操作前</th>
+                  <th>操作后</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
 
-                <thead>
-                  <tr>
-                    <th>模块</th>
-                    <th>操作类型</th>
-                    <th>目标对象</th>
-                    <th>操作说明</th>
-                    <th>操作人</th>
-                    <th>时间</th>
-                    <th>变更</th>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.key}
+                    className={row.changed ? "admin-log-row-changed" : ""}
+                  >
+                    <td>{row.key}</td>
+                    <td>{formatValue(row.beforeValue)}</td>
+                    <td>{formatValue(row.afterValue)}</td>
+                    <td>{row.changed ? "已变更" : "未变化"}</td>
                   </tr>
-                </thead>
-
-                <tbody>
-                  {logs.map((log) => {
-                    const hasSnapshot = Boolean(log.beforeData || log.afterData);
-
-                    return (
-                      <tr key={log.id}>
-                        <td>
-                          <span className={getModuleClassName(log.module)}>
-                            {getModuleText(log.module)}
-                          </span>
-                        </td>
-
-                        <td>{log.action}</td>
-
-                        <td>
-                          <Link
-                            href={getAdminLogHref({
-                              module: log.module,
-                              targetId: log.targetId,
-                            })}
-                            className="admin-log-target-link"
-                          >
-                            {log.targetName || "未记录"}
-                          </Link>
-                        </td>
-
-                        <td>{log.note || "无说明"}</td>
-
-                        <td>{log.operatorName || "管理员"}</td>
-
-                        <td>{log.createdAt.toLocaleString("zh-CN")}</td>
-
-                        <td>
-                          {hasSnapshot ? (
-                            <Link
-                              href={`/admin/logs/${log.id}`}
-                              className="admin-log-change-link"
-                            >
-                              查看变更
-                            </Link>
-                          ) : (
-                            <span className="admin-log-no-change">无快照</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="admin-pagination">
-              <Link
-                href={buildHref({
-                  moduleFilter,
-                  keyword,
-                  page: currentPage - 1,
-                  includePage: true,
-                })}
-                className={
-                  currentPage <= 1
-                    ? "admin-pagination-button disabled"
-                    : "admin-pagination-button"
-                }
-              >
-                上一页
-              </Link>
-
-              <span>
-                第 {currentPage} 页 / 共 {totalPages} 页
-              </span>
-
-              <Link
-                href={buildHref({
-                  moduleFilter,
-                  keyword,
-                  page: currentPage + 1,
-                  includePage: true,
-                })}
-                className={
-                  currentPage >= totalPages
-                    ? "admin-pagination-button disabled"
-                    : "admin-pagination-button"
-                }
-              >
-                下一页
-              </Link>
-            </div>
-          </>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="admin-empty-state">
-            <h3>暂无符合条件的日志</h3>
-            <p>可以尝试清空搜索条件，或切换其他模块筛选。</p>
-            <Link href="/admin/logs" className="admin-reset-link">
-              查看全部日志
-            </Link>
+            <h3>暂无快照数据</h3>
+            <p>
+              旧日志可能没有记录 beforeData / afterData，因此无法查看变更详情。
+            </p>
           </div>
+        )}
+      </section>
+
+      <section className="admin-log-detail-card admin-rollback-card">
+        <div>
+          <h2>安全回滚</h2>
+          <p>
+            当前第一版仅支持分类编辑、分类启用、分类停用操作回滚。删除类操作暂不支持回滚。
+          </p>
+        </div>
+
+        {rollbackAvailable ? (
+          <form action={rollbackCategoryLogAction}>
+            <input type="hidden" name="logId" value={log.id} />
+
+            <ConfirmSubmitButton
+              className="danger-button admin-rollback-button"
+              message="确定要将该分类恢复到本次操作之前的状态吗？回滚后系统会自动写入一条新的回滚日志。"
+            >
+              回滚到操作前
+            </ConfirmSubmitButton>
+          </form>
+        ) : (
+          <span className="admin-rollback-disabled">
+            当前日志暂不支持回滚
+          </span>
         )}
       </section>
     </AdminLayout>

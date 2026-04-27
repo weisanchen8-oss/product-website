@@ -4716,3 +4716,53 @@ input {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-rollback-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #fecaca;
+  background: #fffafa;
+}
+
+.admin-rollback-card h2 {
+  margin: 0;
+  color: #991b1b;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.admin-rollback-card p {
+  margin-top: 8px;
+  color: #b45309;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.admin-rollback-button {
+  min-height: 42px;
+  padding: 0 18px;
+  white-space: nowrap;
+}
+
+.admin-rollback-disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .admin-rollback-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
