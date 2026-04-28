@@ -71,6 +71,7 @@ export async function AdminLayout({ children }: AdminLayoutProps) {
           <Link href="/admin/products">产品管理</Link>
           <Link href="/admin/categories">分类管理</Link>
           <Link href="/admin/inquiries">询单管理</Link>
+          <Link href="/admin/promotions">促销活动</Link>
           <Link href="/admin/customers">客户管理</Link>
           <Link href="/admin/content">内容管理</Link>
           <Link href="/admin/logs">操作日志</Link>

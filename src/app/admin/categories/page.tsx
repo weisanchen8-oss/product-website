@@ -1,14 +1,12 @@
 /**
  * 文件作用：
- * 定义后台分类管理页。
+ * 后台分类管理页（增强版）
  * 支持：
- * - 分类搜索
- * - 新增分类
- * - 编辑分类
- * - 删除分类成功/失败提示
- * - 删除分类前确认
- * - 删除分类安全校验
- * - 批量启用 / 停用分类
+ * - 关键词搜索
+ * - 父级分类筛选
+ * - 启用状态筛选
+ * - 是否有产品筛选
+ * - 是否有子分类筛选
  */
 
 import Link from "next/link";
@@ -21,6 +19,10 @@ type AdminCategoriesPageProps = {
   searchParams: Promise<{
     success?: string;
     q?: string;
+    parentId?: string;
+    activeStatus?: string;
+    productStatus?: string;
+    childStatus?: string;
   }>;
 };
 
@@ -33,19 +35,11 @@ function getToastMessage(success?: string) {
     case "deleted":
       return "分类已删除。";
     case "delete-has-products":
-      return "无法删除：该分类下仍有产品，请先调整产品分类。";
+      return "无法删除：该分类下仍有产品。";
     case "delete-has-children":
-      return "无法删除：该分类下仍有子分类，请先处理子分类。";
-    case "delete-not-found":
-      return "删除失败：分类不存在。";
-    case "delete-failed":
-      return "删除失败，请稍后重试。";
+      return "无法删除：该分类下仍有子分类。";
     case "bulk-updated":
       return "已完成分类批量更新。";
-    case "bulk-empty":
-      return "请先选择需要批量处理的分类。";
-    case "bulk-invalid-action":
-      return "批量操作失败：无效的操作类型。";
     default:
       return "";
   }
@@ -54,17 +48,35 @@ function getToastMessage(success?: string) {
 export default async function AdminCategoriesPage({
   searchParams,
 }: AdminCategoriesPageProps) {
-  const { success, q = "" } = await searchParams;
+  const {
+    success,
+    q = "",
+    parentId = "all",
+    activeStatus = "all",
+    productStatus = "all",
+    childStatus = "all",
+  } = await searchParams;
+
   const keyword = q.trim();
 
-  const { categories } = await getAdminCategoriesPageData(keyword);
+  const { categories, parentCategories } =
+    await getAdminCategoriesPageData({
+      keyword,
+      parentId,
+      activeStatus,
+      productStatus,
+      childStatus,
+    });
+
   const toastMessage = getToastMessage(success);
 
   const currentParams = new URLSearchParams();
 
-  if (keyword) {
-    currentParams.set("q", keyword);
-  }
+  if (keyword) currentParams.set("q", keyword);
+  if (parentId !== "all") currentParams.set("parentId", parentId);
+  if (activeStatus !== "all") currentParams.set("activeStatus", activeStatus);
+  if (productStatus !== "all") currentParams.set("productStatus", productStatus);
+  if (childStatus !== "all") currentParams.set("childStatus", childStatus);
 
   const currentPath = `/admin/categories${
     currentParams.toString() ? `?${currentParams.toString()}` : ""
@@ -74,7 +86,7 @@ export default async function AdminCategoriesPage({
     id: category.id,
     name: category.name,
     slug: category.slug,
-    description: category.description || "暂无分类说明。",
+    description: category.description || "暂无说明",
     parentName: category.parent?.name || "无",
     sortOrder: category.sortOrder,
     productCount: category._count.products,
@@ -89,7 +101,7 @@ export default async function AdminCategoriesPage({
       <div className="admin-category-header">
         <div>
           <h1>分类管理</h1>
-          <p>可按分类名称、Slug 或分类说明搜索分类，并批量启用/停用。</p>
+          <p>支持多维筛选分类数据。</p>
         </div>
 
         <Link href="/admin/categories/new" className="primary-button">
@@ -97,17 +109,46 @@ export default async function AdminCategoriesPage({
         </Link>
       </div>
 
+      {/* 筛选栏 */}
       <section className="admin-category-toolbar">
-        <form className="admin-category-search-form">
+        <form className="admin-category-filter-form">
           <input
             name="q"
             type="search"
             defaultValue={keyword}
-            placeholder="搜索分类名称、Slug 或分类说明"
+            placeholder="关键词搜索"
           />
 
+          <select name="parentId" defaultValue={parentId}>
+            <option value="all">全部父级</option>
+            <option value="none">无父级（顶级分类）</option>
+            {parentCategories.map((c) => (
+              <option key={c.id} value={String(c.id)}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+
+          <select name="activeStatus" defaultValue={activeStatus}>
+            <option value="all">全部状态</option>
+            <option value="active">启用</option>
+            <option value="inactive">停用</option>
+          </select>
+
+          <select name="productStatus" defaultValue={productStatus}>
+            <option value="all">全部产品情况</option>
+            <option value="has-products">有产品</option>
+            <option value="no-products">无产品</option>
+          </select>
+
+          <select name="childStatus" defaultValue={childStatus}>
+            <option value="all">全部子分类情况</option>
+            <option value="has-children">有子分类</option>
+            <option value="no-children">无子分类</option>
+          </select>
+
           <button type="submit" className="admin-search-button">
-            搜索
+            筛选
           </button>
 
           <Link href="/admin/categories" className="admin-reset-link">
@@ -116,12 +157,11 @@ export default async function AdminCategoriesPage({
         </form>
       </section>
 
+      {/* 表格 */}
       <section className="admin-category-table-card">
         <div className="admin-category-table-header">
-          <div>
-            <h2>分类列表</h2>
-            <p>共 {categories.length} 个分类</p>
-          </div>
+          <h2>分类列表</h2>
+          <p>当前筛选结果 {categories.length} 个</p>
         </div>
 
         <CategoryBulkForm

@@ -15,6 +15,8 @@ type ProductBulkItem = {
   isFeatured: boolean;
   isManualHot: boolean;
   coverUrl: string | null;
+  isPromoting: boolean;
+  promotionTitle: string | null;
 };
 
 type ProductBulkFormProps = {
@@ -192,7 +194,13 @@ export function ProductBulkForm({ products, redirectTo }: ProductBulkFormProps) 
                     <div className="admin-product-tags">
                       {product.isFeatured ? <span>推荐</span> : null}
                       {product.isManualHot ? <span>热销</span> : null}
-                      {!product.isFeatured && !product.isManualHot ? (
+                      {product.isPromoting ? (
+                        <span className="admin-product-tag-promotion">
+                          促销中{product.promotionTitle ? `：${product.promotionTitle}` : ""}
+                        </span>
+                      ) : null}
+
+                      {!product.isFeatured && !product.isManualHot && !product.isPromoting ? (
                         <em>无</em>
                       ) : null}
                     </div>
