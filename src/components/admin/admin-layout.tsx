@@ -67,6 +67,7 @@ export async function AdminLayout({ children }: AdminLayoutProps) {
 
         <nav className="admin-nav">
           <Link href="/admin">后台首页</Link>
+          <Link href="/admin/dashboard">数据看板</Link>
           <Link href="/admin/products">产品管理</Link>
           <Link href="/admin/categories">分类管理</Link>
           <Link href="/admin/inquiries">询单管理</Link>
