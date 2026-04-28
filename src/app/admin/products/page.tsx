@@ -10,12 +10,14 @@
  * - 新增产品入口
  * - 批量上架 / 下架 / 推荐 / 热销 / 删除
  * - 删除前弹窗确认
+ * - 产品列表分页，每页 10 条
  */
 
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { AdminActionToast } from "@/components/admin/admin-action-toast";
 import { ProductBulkForm } from "@/components/admin/product-bulk-form";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 import { getAdminProductsPageData } from "@/lib/admin-data";
 
 type AdminProductsPageProps = {
@@ -26,6 +28,7 @@ type AdminProductsPageProps = {
     activeStatus?: string;
     featuredStatus?: string;
     hotStatus?: string;
+    page?: string;
   }>;
 };
 
@@ -39,16 +42,27 @@ export default async function AdminProductsPage({
     activeStatus = "all",
     featuredStatus = "all",
     hotStatus = "all",
+    page = "1",
   } = await searchParams;
 
   const keyword = q.trim();
+  const pageNumber = Math.max(1, Number(page) || 1);
 
-  const { products, categories } = await getAdminProductsPageData({
+  const {
+    products,
+    categories,
+    promotions,
+    totalCount,
+    currentPage,
+    totalPages,
+  } = await getAdminProductsPageData({
     keyword,
     categoryId,
     activeStatus,
     featuredStatus,
     hotStatus,
+    page: pageNumber,
+    pageSize: 10,
   });
 
   const currentParams = new URLSearchParams();
@@ -56,7 +70,9 @@ export default async function AdminProductsPage({
   if (keyword) currentParams.set("q", keyword);
   if (categoryId !== "all") currentParams.set("categoryId", categoryId);
   if (activeStatus !== "all") currentParams.set("activeStatus", activeStatus);
-  if (featuredStatus !== "all") currentParams.set("featuredStatus", featuredStatus);
+  if (featuredStatus !== "all") {
+    currentParams.set("featuredStatus", featuredStatus);
+  }
   if (hotStatus !== "all") currentParams.set("hotStatus", hotStatus);
 
   const currentPath = `/admin/products${
@@ -96,9 +112,15 @@ export default async function AdminProductsPage({
   return (
     <AdminLayout>
       {success === "created" ? <AdminActionToast message="产品已新增。" /> : null}
-      {success === "bulk-updated" ? <AdminActionToast message="已完成产品批量更新。" /> : null}
-      {success === "bulk-deleted" ? <AdminActionToast message="已删除选中的产品。" /> : null}
-      {success === "bulk-empty" ? <AdminActionToast message="请先选择需要批量处理的产品。" /> : null}
+      {success === "bulk-updated" ? (
+        <AdminActionToast message="已完成产品批量更新。" />
+      ) : null}
+      {success === "bulk-deleted" ? (
+        <AdminActionToast message="已删除选中的产品。" />
+      ) : null}
+      {success === "bulk-empty" ? (
+        <AdminActionToast message="请先选择需要批量处理的产品。" />
+      ) : null}
       {success === "bulk-invalid-action" ? (
         <AdminActionToast message="批量操作失败：无效的操作类型。" />
       ) : null}
@@ -181,11 +203,30 @@ export default async function AdminProductsPage({
         <div className="admin-product-table-header">
           <div>
             <h2>产品列表</h2>
-            <p>当前筛选结果共 {products.length} 个产品</p>
+            <p>
+              当前筛选结果共 {totalCount} 个产品，每页显示 10 个
+            </p>
           </div>
         </div>
 
-        <ProductBulkForm products={bulkProducts} redirectTo={currentPath} />
+        <ProductBulkForm
+          products={bulkProducts}
+          promotions={promotions}
+          redirectTo={currentPath}
+        />
+
+        <AdminPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          basePath="/admin/products"
+          searchParams={{
+            q: keyword,
+            categoryId,
+            activeStatus,
+            featuredStatus,
+            hotStatus,
+          }}
+        />
       </section>
     </AdminLayout>
   );

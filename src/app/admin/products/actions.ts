@@ -572,6 +572,7 @@ export async function deleteProductImageAction(formData: FormData) {
 export async function bulkManageProductsAction(formData: FormData) {
   const productIdValues = formData.getAll("productIds");
   const bulkAction = String(formData.get("bulkAction") ?? "");
+  const promotionId = Number(formData.get("promotionId"));
   const redirectTo = getSafeRedirectPath(formData.get("redirectTo"));
 
   const productIds = productIdValues
@@ -589,6 +590,7 @@ export async function bulkManageProductsAction(formData: FormData) {
     "unfeature",
     "hot",
     "unhot",
+    "add-promotion",
     "delete",
   ];
 
@@ -609,6 +611,60 @@ export async function bulkManageProductsAction(formData: FormData) {
 
   if (products.length === 0) {
     redirect(appendSuccessParam(redirectTo, "bulk-empty"));
+  }
+
+  if (bulkAction === "add-promotion") {
+    if (!promotionId || Number.isNaN(promotionId)) {
+      redirect(appendSuccessParam(redirectTo, "bulk-invalid-action"));
+    }
+
+    const existingRelations = await prisma.promotionProduct.findMany({
+      where: {
+        promotionId,
+        productId: {
+          in: productIds,
+        },
+      },
+      select: {
+        productId: true,
+      },
+    });
+
+    const existingProductIds = existingRelations.map((item) => item.productId);
+
+    const newProductIds = productIds.filter(
+      (id) => !existingProductIds.includes(id)
+    );
+
+    if (newProductIds.length > 0) {
+      await prisma.promotionProduct.createMany({
+        data: newProductIds.map((productId) => ({
+          promotionId,
+          productId,
+        })),
+      });
+    }
+
+    await Promise.all(
+      products.map((product) =>
+        createAdminLog({
+          module: "product",
+          action: "add-promotion",
+          targetId: product.id,
+          targetName: product.name,
+          note: `批量加入促销活动：${product.name}`,
+          beforeData: getProductSnapshot(product),
+          afterData: {
+            ...getProductSnapshot(product),
+            promotionId,
+          },
+        })
+      )
+    );
+
+    revalidateProductPaths();
+
+    redirect(appendSuccessParam(redirectTo, "bulk-updated"));
   }
 
   if (bulkAction === "delete") {

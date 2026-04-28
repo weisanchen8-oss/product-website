@@ -8,6 +8,7 @@
  * - Excel 导出
  * - 重点客户星标展示
  * - 批量更新询单状态
+ * - 询单列表分页，每页 10 条
  */
 
 import Link from "next/link";
@@ -15,12 +16,14 @@ import { Prisma } from "@prisma/client";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { AdminActionToast } from "@/components/admin/admin-action-toast";
 import { InquiryBulkForm } from "@/components/admin/inquiry-bulk-form";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 import { prisma } from "@/lib/prisma";
 
 type AdminInquiriesPageProps = {
   searchParams: Promise<{
     status?: string;
     q?: string;
+    page?: string;
     success?: string;
   }>;
 };
@@ -69,8 +72,12 @@ function getStatusClassName(status: string) {
 export default async function AdminInquiriesPage({
   searchParams,
 }: AdminInquiriesPageProps) {
-  const { status = "all", q = "", success } = await searchParams;
+  const { status = "all", q = "", page = "1", success } = await searchParams;
+
   const keyword = q.trim();
+  const pageSize = 10;
+  const currentPage = Math.max(1, Number(page) || 1);
+  const skip = (currentPage - 1) * pageSize;
 
   const whereClause: Prisma.InquiryWhereInput = {};
 
@@ -115,14 +122,23 @@ export default async function AdminInquiriesPage({
     ];
   }
 
-  const inquiries = await prisma.inquiry.findMany({
-    where: whereClause,
-    orderBy: [{ createdAt: "desc" }],
-    include: {
-      user: true,
-      items: true,
-    },
-  });
+  const [inquiries, totalCount] = await Promise.all([
+    prisma.inquiry.findMany({
+      where: whereClause,
+      orderBy: [{ createdAt: "desc" }],
+      skip,
+      take: pageSize,
+      include: {
+        user: true,
+        items: true,
+      },
+    }),
+    prisma.inquiry.count({
+      where: whereClause,
+    }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const exportParams = new URLSearchParams();
 
@@ -247,11 +263,23 @@ export default async function AdminInquiriesPage({
         <div className="admin-inquiry-table-header">
           <div>
             <h2>询单列表</h2>
-            <p>共 {inquiries.length} 条询单记录</p>
+            <p>
+              共 {totalCount} 条询单记录，每页显示 10 条
+            </p>
           </div>
         </div>
 
         <InquiryBulkForm inquiries={bulkItems} redirectTo={currentPath} />
+
+        <AdminPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          basePath="/admin/inquiries"
+          searchParams={{
+            status,
+            q: keyword,
+          }}
+        />
       </section>
     </AdminLayout>
   );

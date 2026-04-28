@@ -21,7 +21,13 @@ type ProductBulkItem = {
 
 type ProductBulkFormProps = {
   products: ProductBulkItem[];
+  promotions: PromotionOption[];
   redirectTo: string;
+};
+
+type PromotionOption = {
+  id: number;
+  title: string;
 };
 
 function getProductStatusText(isActive: boolean) {
@@ -34,7 +40,11 @@ function getProductStatusClassName(isActive: boolean) {
     : "admin-product-status admin-product-status-inactive";
 }
 
-export function ProductBulkForm({ products, redirectTo }: ProductBulkFormProps) {
+export function ProductBulkForm({
+  products,
+  promotions,
+  redirectTo,
+}: ProductBulkFormProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkAction, setBulkAction] = useState("activate");
 
@@ -97,12 +107,24 @@ export function ProductBulkForm({ products, redirectTo }: ProductBulkFormProps) 
           >
             <option value="activate">批量上架</option>
             <option value="deactivate">批量下架</option>
+            <option value="add-promotion">加入促销活动</option>
             <option value="feature">设为推荐</option>
             <option value="unfeature">取消推荐</option>
             <option value="hot">设为热销</option>
             <option value="unhot">取消热销</option>
             <option value="delete">批量删除</option>
           </select>
+
+          {bulkAction === "add-promotion" ? (
+            <select name="promotionId" required>
+              <option value="">选择促销活动</option>
+              {promotions.map((promotion) => (
+                <option value={promotion.id} key={promotion.id}>
+                  {promotion.title}
+                </option>
+              ))}
+            </select>
+          ) : null}
 
           <button
             type="submit"

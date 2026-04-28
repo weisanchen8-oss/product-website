@@ -1,6 +1,11 @@
 /**
  * 文件作用：
  * 封装后台管理页所需的数据读取逻辑。
+ * 包括：
+ * - 后台首页统计数据
+ * - 产品管理分页与多条件筛选数据
+ * - 分类管理分页与多条件筛选数据
+ * - 询单、内容、促销等后台数据
  */
 
 import { Prisma } from "@prisma/client";
@@ -96,62 +101,65 @@ export type AdminProductFilters = {
   activeStatus?: string;
   featuredStatus?: string;
   hotStatus?: string;
+  page?: number;
+  pageSize?: number;
 };
 
 export async function getAdminProductsPageData(filters: AdminProductFilters = {}) {
-  const keyword = filters.keyword?.trim() || "";
+  const {
+    keyword = "",
+    categoryId = "all",
+    activeStatus = "all",
+    featuredStatus = "all",
+    hotStatus = "all",
+    page = 1,
+    pageSize = 10,
+  } = filters;
+
+  const currentPage = Math.max(1, page);
+  const currentPageSize = Math.max(1, pageSize);
+  const skip = (currentPage - 1) * currentPageSize;
+  const trimmedKeyword = keyword.trim();
 
   const where: Prisma.ProductWhereInput = {};
 
-  if (keyword) {
+  if (trimmedKeyword) {
     where.OR = [
-      { name: { contains: keyword } },
-      { slug: { contains: keyword } },
-      { shortDesc: { contains: keyword } },
-      { keywords: { contains: keyword } },
-      { priceText: { contains: keyword } },
-      {
-        category: {
-          name: {
-            contains: keyword,
-          },
-        },
-      },
+      { name: { contains: trimmedKeyword } },
+      { slug: { contains: trimmedKeyword } },
+      { shortDesc: { contains: trimmedKeyword } },
+      { keywords: { contains: trimmedKeyword } },
+      { priceText: { contains: trimmedKeyword } },
+      { category: { name: { contains: trimmedKeyword } } },
     ];
   }
 
-  if (filters.categoryId && filters.categoryId !== "all") {
-    where.categoryId = Number(filters.categoryId);
+  if (categoryId !== "all") {
+    const parsedCategoryId = Number(categoryId);
+
+    if (!Number.isNaN(parsedCategoryId)) {
+      where.categoryId = parsedCategoryId;
+    }
   }
 
-  if (filters.activeStatus === "active") {
-    where.isActive = true;
+  if (activeStatus !== "all") {
+    where.isActive = activeStatus === "active";
   }
 
-  if (filters.activeStatus === "inactive") {
-    where.isActive = false;
+  if (featuredStatus !== "all") {
+    where.isFeatured = featuredStatus === "featured";
   }
 
-  if (filters.featuredStatus === "featured") {
-    where.isFeatured = true;
+  if (hotStatus !== "all") {
+    where.isManualHot = hotStatus === "hot";
   }
 
-  if (filters.featuredStatus === "not-featured") {
-    where.isFeatured = false;
-  }
-
-  if (filters.hotStatus === "hot") {
-    where.isManualHot = true;
-  }
-
-  if (filters.hotStatus === "not-hot") {
-    where.isManualHot = false;
-  }
-
-  const [products, categories] = await Promise.all([
+  const [products, categories, promotions, totalCount] = await Promise.all([
     prisma.product.findMany({
       where,
       orderBy: [{ createdAt: "desc" }],
+      skip,
+      take: currentPageSize,
       include: {
         category: true,
         images: {
@@ -166,7 +174,6 @@ export async function getAdminProductsPageData(filters: AdminProductFilters = {}
         },
       },
     }),
-
     prisma.category.findMany({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       select: {
@@ -174,9 +181,28 @@ export async function getAdminProductsPageData(filters: AdminProductFilters = {}
         name: true,
       },
     }),
+    prisma.promotion.findMany({
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        title: true,
+        isActive: true,
+        startAt: true,
+        endAt: true,
+      },
+    }),
+    prisma.product.count({ where }),
   ]);
 
-  return { products, categories };
+  return {
+    products,
+    categories,
+    promotions,
+    totalCount,
+    pageSize: currentPageSize,
+    currentPage,
+    totalPages: Math.max(1, Math.ceil(totalCount / currentPageSize)),
+  };
 }
 
 export type AdminCategoryFilters = {
@@ -185,63 +211,78 @@ export type AdminCategoryFilters = {
   activeStatus?: string;
   productStatus?: string;
   childStatus?: string;
+  page?: number;
+  pageSize?: number;
 };
 
-export async function getAdminCategoriesPageData(filters: AdminCategoryFilters = {}) {
-  const keyword = filters.keyword?.trim() || "";
+export async function getAdminCategoriesPageData(
+  filters: AdminCategoryFilters = {}
+) {
+  const {
+    keyword = "",
+    parentId = "all",
+    activeStatus = "all",
+    productStatus = "all",
+    childStatus = "all",
+    page = 1,
+    pageSize = 10,
+  } = filters;
+
+  const currentPage = Math.max(1, page);
+  const currentPageSize = Math.max(1, pageSize);
+  const skip = (currentPage - 1) * currentPageSize;
+  const trimmedKeyword = keyword.trim();
 
   const where: Prisma.CategoryWhereInput = {};
 
-  if (keyword) {
+  if (trimmedKeyword) {
     where.OR = [
-      { name: { contains: keyword } },
-      { slug: { contains: keyword } },
-      { description: { contains: keyword } },
+      { name: { contains: trimmedKeyword } },
+      { slug: { contains: trimmedKeyword } },
+      { description: { contains: trimmedKeyword } },
     ];
   }
 
-  if (filters.parentId === "none") {
+  if (parentId === "none") {
     where.parentId = null;
-  } else if (filters.parentId && filters.parentId !== "all") {
-    where.parentId = Number(filters.parentId);
+  } else if (parentId !== "all") {
+    const parsedParentId = Number(parentId);
+
+    if (!Number.isNaN(parsedParentId)) {
+      where.parentId = parsedParentId;
+    }
   }
 
-  if (filters.activeStatus === "active") {
-    where.isActive = true;
+  if (activeStatus !== "all") {
+    where.isActive = activeStatus === "active";
   }
 
-  if (filters.activeStatus === "inactive") {
-    where.isActive = false;
-  }
-
-  if (filters.productStatus === "has-products") {
+  if (productStatus === "has-products") {
     where.products = {
       some: {},
     };
-  }
-
-  if (filters.productStatus === "no-products") {
+  } else if (productStatus === "no-products") {
     where.products = {
       none: {},
     };
   }
 
-  if (filters.childStatus === "has-children") {
+  if (childStatus === "has-children") {
     where.children = {
       some: {},
     };
-  }
-
-  if (filters.childStatus === "no-children") {
+  } else if (childStatus === "no-children") {
     where.children = {
       none: {},
     };
   }
 
-  const [categories, parentCategories] = await Promise.all([
+  const [categories, parentCategories, totalCount] = await Promise.all([
     prisma.category.findMany({
       where,
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      skip,
+      take: currentPageSize,
       include: {
         parent: true,
         _count: {
@@ -252,17 +293,27 @@ export async function getAdminCategoriesPageData(filters: AdminCategoryFilters =
         },
       },
     }),
-
     prisma.category.findMany({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      where: {
+        parentId: null,
+      },
       select: {
         id: true,
         name: true,
       },
     }),
+    prisma.category.count({ where }),
   ]);
 
-  return { categories, parentCategories };
+  return {
+    categories,
+    parentCategories,
+    totalCount,
+    pageSize: currentPageSize,
+    currentPage,
+    totalPages: Math.max(1, Math.ceil(totalCount / currentPageSize)),
+  };
 }
 
 export async function getAdminInquiriesPageData() {

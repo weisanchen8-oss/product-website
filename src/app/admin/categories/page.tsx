@@ -7,12 +7,14 @@
  * - 启用状态筛选
  * - 是否有产品筛选
  * - 是否有子分类筛选
+ * - 分类列表分页，每页 10 条
  */
 
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { AdminActionToast } from "@/components/admin/admin-action-toast";
 import { CategoryBulkForm } from "@/components/admin/category-bulk-form";
+import { AdminPagination } from "@/components/admin/admin-pagination";
 import { getAdminCategoriesPageData } from "@/lib/admin-data";
 
 type AdminCategoriesPageProps = {
@@ -23,6 +25,7 @@ type AdminCategoriesPageProps = {
     activeStatus?: string;
     productStatus?: string;
     childStatus?: string;
+    page?: string;
   }>;
 };
 
@@ -55,18 +58,27 @@ export default async function AdminCategoriesPage({
     activeStatus = "all",
     productStatus = "all",
     childStatus = "all",
+    page = "1",
   } = await searchParams;
 
   const keyword = q.trim();
+  const pageNumber = Math.max(1, Number(page) || 1);
 
-  const { categories, parentCategories } =
-    await getAdminCategoriesPageData({
-      keyword,
-      parentId,
-      activeStatus,
-      productStatus,
-      childStatus,
-    });
+  const {
+    categories,
+    parentCategories,
+    totalCount,
+    currentPage,
+    totalPages,
+  } = await getAdminCategoriesPageData({
+    keyword,
+    parentId,
+    activeStatus,
+    productStatus,
+    childStatus,
+    page: pageNumber,
+    pageSize: 10,
+  });
 
   const toastMessage = getToastMessage(success);
 
@@ -75,7 +87,9 @@ export default async function AdminCategoriesPage({
   if (keyword) currentParams.set("q", keyword);
   if (parentId !== "all") currentParams.set("parentId", parentId);
   if (activeStatus !== "all") currentParams.set("activeStatus", activeStatus);
-  if (productStatus !== "all") currentParams.set("productStatus", productStatus);
+  if (productStatus !== "all") {
+    currentParams.set("productStatus", productStatus);
+  }
   if (childStatus !== "all") currentParams.set("childStatus", childStatus);
 
   const currentPath = `/admin/categories${
@@ -109,7 +123,6 @@ export default async function AdminCategoriesPage({
         </Link>
       </div>
 
-      {/* 筛选栏 */}
       <section className="admin-category-toolbar">
         <form className="admin-category-filter-form">
           <input
@@ -157,16 +170,30 @@ export default async function AdminCategoriesPage({
         </form>
       </section>
 
-      {/* 表格 */}
       <section className="admin-category-table-card">
         <div className="admin-category-table-header">
           <h2>分类列表</h2>
-          <p>当前筛选结果 {categories.length} 个</p>
+          <p>
+            当前筛选结果共 {totalCount} 个分类，每页显示 10 个
+          </p>
         </div>
 
         <CategoryBulkForm
           categories={bulkCategories}
           redirectTo={currentPath}
+        />
+
+        <AdminPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          basePath="/admin/categories"
+          searchParams={{
+            q: keyword,
+            parentId,
+            activeStatus,
+            productStatus,
+            childStatus,
+          }}
         />
       </section>
     </AdminLayout>
