@@ -79,6 +79,33 @@ export default async function AdminProductsPage({
     currentParams.toString() ? `?${currentParams.toString()}` : ""
   }`;
 
+  function getPromotionDiscountScore(promotion: {
+    discountType: string;
+    discountValue: number;
+  }) {
+    if (promotion.discountType === "percent") {
+      return promotion.discountValue;
+    }
+
+    return promotion.discountValue;
+  }
+
+  function getBestPromotion<
+    T extends {
+      title: string;
+      discountType: string;
+      discountValue: number;
+    },
+  >(promotions: T[]) {
+    if (promotions.length === 0) return null;
+
+    return promotions.reduce((best, current) => {
+      return getPromotionDiscountScore(current) > getPromotionDiscountScore(best)
+        ? current
+        : best;
+    });
+  }
+
   const bulkProducts = products.map((product) => {
     const coverImage = product.images[0];
 
@@ -93,6 +120,8 @@ export default async function AdminProductsPage({
           promotion.endAt >= now
       );
 
+    const bestPromotion = getBestPromotion(activePromotions);
+
     return {
       id: product.id,
       name: product.name,
@@ -103,8 +132,10 @@ export default async function AdminProductsPage({
       isActive: product.isActive,
       isFeatured: product.isFeatured,
       isManualHot: product.isManualHot,
-      isPromoting: activePromotions.length > 0,
-      promotionTitle: activePromotions[0]?.title || null,
+      isPromoting: Boolean(bestPromotion),
+      promotionTitle: bestPromotion
+        ? `${bestPromotion.title}（最优优惠）`
+        : null,
       coverUrl: coverImage?.processedUrl || coverImage?.originalUrl || null,
     };
   });

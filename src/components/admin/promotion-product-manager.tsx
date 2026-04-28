@@ -1,15 +1,19 @@
 /**
  * 文件作用：
  * 促销活动产品绑定管理组件。
- * 当前版本只展示已参与促销产品，并支持单个/批量移除。
- * 添加产品请前往产品管理页，通过搜索/筛选后批量加入促销活动。
+ * 这是客户端组件，负责单个/批量绑定和移除促销产品。
+ * 支持：
+ * - 已参与促销产品分页，每页 10 个
+ * - 可加入促销产品分页，每页 10 个
+ * - 当前页批量选择
+ * - 单个加入 / 移除
+ * - 批量加入 / 移除
  */
 
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type ProductItem = {
   id: number;
@@ -26,6 +30,46 @@ type PromotionProductManagerProps = {
   allProducts: ProductItem[];
 };
 
+const PAGE_SIZE = 10;
+
+function PaginationButtons({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="admin-pagination">
+      <button
+        type="button"
+        className="admin-pagination-link"
+        disabled={currentPage <= 1}
+        onClick={() => onPageChange(currentPage - 1)}
+      >
+        上一页
+      </button>
+
+      <span className="admin-pagination-info">
+        第 {currentPage} / {totalPages} 页
+      </span>
+
+      <button
+        type="button"
+        className="admin-pagination-link"
+        disabled={currentPage >= totalPages}
+        onClick={() => onPageChange(currentPage + 1)}
+      >
+        下一页
+      </button>
+    </div>
+  );
+}
+
 export function PromotionProductManager({
   promotionId,
   linkedProductIds,
@@ -36,17 +80,54 @@ export function PromotionProductManager({
   const [loadingProductId, setLoadingProductId] = useState<number | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selectedLinkedIds, setSelectedLinkedIds] = useState<number[]>([]);
+  const [selectedUnlinkedIds, setSelectedUnlinkedIds] = useState<number[]>([]);
+
+  const [linkedPage, setLinkedPage] = useState(1);
+  const [unlinkedPage, setUnlinkedPage] = useState(1);
 
   const linkedProducts = useMemo(
     () => allProducts.filter((product) => linkedProductIds.includes(product.id)),
     [allProducts, linkedProductIds]
   );
 
-  const linkedVisibleIds = linkedProducts.map((product) => product.id);
+  const unlinkedProducts = useMemo(
+    () => allProducts.filter((product) => !linkedProductIds.includes(product.id)),
+    [allProducts, linkedProductIds]
+  );
+
+  const linkedTotalPages = Math.max(
+    1,
+    Math.ceil(linkedProducts.length / PAGE_SIZE)
+  );
+
+  const unlinkedTotalPages = Math.max(
+    1,
+    Math.ceil(unlinkedProducts.length / PAGE_SIZE)
+  );
+
+  const safeLinkedPage = Math.min(linkedPage, linkedTotalPages);
+  const safeUnlinkedPage = Math.min(unlinkedPage, unlinkedTotalPages);
+
+  const pagedLinkedProducts = linkedProducts.slice(
+    (safeLinkedPage - 1) * PAGE_SIZE,
+    safeLinkedPage * PAGE_SIZE
+  );
+
+  const pagedUnlinkedProducts = unlinkedProducts.slice(
+    (safeUnlinkedPage - 1) * PAGE_SIZE,
+    safeUnlinkedPage * PAGE_SIZE
+  );
+
+  const linkedVisibleIds = pagedLinkedProducts.map((product) => product.id);
+  const unlinkedVisibleIds = pagedUnlinkedProducts.map((product) => product.id);
 
   const isAllLinkedSelected =
     linkedVisibleIds.length > 0 &&
-    selectedLinkedIds.length === linkedVisibleIds.length;
+    linkedVisibleIds.every((id) => selectedLinkedIds.includes(id));
+
+  const isAllUnlinkedSelected =
+    unlinkedVisibleIds.length > 0 &&
+    unlinkedVisibleIds.every((id) => selectedUnlinkedIds.includes(id));
 
   function toggleLinked(id: number) {
     setSelectedLinkedIds((current) =>
@@ -56,8 +137,60 @@ export function PromotionProductManager({
     );
   }
 
+  function toggleUnlinked(id: number) {
+    setSelectedUnlinkedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    );
+  }
+
   function toggleAllLinked() {
-    setSelectedLinkedIds(isAllLinkedSelected ? [] : linkedVisibleIds);
+    if (isAllLinkedSelected) {
+      setSelectedLinkedIds((current) =>
+        current.filter((id) => !linkedVisibleIds.includes(id))
+      );
+      return;
+    }
+
+    setSelectedLinkedIds((current) =>
+      Array.from(new Set([...current, ...linkedVisibleIds]))
+    );
+  }
+
+  function toggleAllUnlinked() {
+    if (isAllUnlinkedSelected) {
+      setSelectedUnlinkedIds((current) =>
+        current.filter((id) => !unlinkedVisibleIds.includes(id))
+      );
+      return;
+    }
+
+    setSelectedUnlinkedIds((current) =>
+      Array.from(new Set([...current, ...unlinkedVisibleIds]))
+    );
+  }
+
+  async function handleBind(productId: number) {
+    setLoadingProductId(productId);
+
+    const res = await fetch("/api/admin/promotions", {
+      method: "PATCH",
+      body: JSON.stringify({
+        promotionId,
+        productId,
+      }),
+    });
+
+    setLoadingProductId(null);
+
+    if (!res.ok) {
+      alert("绑定失败，可能该产品已在当前促销中。");
+      return;
+    }
+
+    setSelectedUnlinkedIds([]);
+    router.refresh();
   }
 
   async function handleRemove(productId: number) {
@@ -83,6 +216,33 @@ export function PromotionProductManager({
     }
 
     setSelectedLinkedIds([]);
+    router.refresh();
+  }
+
+  async function handleBulkBind() {
+    if (selectedUnlinkedIds.length === 0) {
+      alert("请先选择要加入促销的产品。");
+      return;
+    }
+
+    setBulkLoading(true);
+
+    const res = await fetch("/api/admin/promotions", {
+      method: "PATCH",
+      body: JSON.stringify({
+        promotionId,
+        productIds: selectedUnlinkedIds,
+      }),
+    });
+
+    setBulkLoading(false);
+
+    if (!res.ok) {
+      alert("批量加入失败，请稍后重试。");
+      return;
+    }
+
+    setSelectedUnlinkedIds([]);
     router.refresh();
   }
 
@@ -118,24 +278,15 @@ export function PromotionProductManager({
   }
 
   return (
-    <section className="promotion-product-single-layout">
+    <section className="promotion-product-layout">
       <div className="admin-panel">
         <div className="admin-panel-header">
           <div>
             <h2>已参与促销产品</h2>
-            <p>共 {linkedProducts.length} 个产品。需要新增促销产品时，请前往产品管理页筛选后批量加入。</p>
+            <p>
+              共 {linkedProducts.length} 个产品，每页显示 {PAGE_SIZE} 个
+            </p>
           </div>
-
-          <Link href="/admin/products" className="promotion-card-link">
-            去产品管理添加
-          </Link>
-        </div>
-
-        <div className="promotion-tip-box">
-          <strong>操作提示</strong>
-          <p>
-            促销产品的添加入口已统一放在产品管理页。你可以先按分类、上架状态、推荐状态、热销状态或关键词筛选产品，再勾选多个产品批量加入当前促销活动。
-          </p>
         </div>
 
         <div className="promotion-product-bulk-bar">
@@ -145,7 +296,7 @@ export function PromotionProductManager({
               checked={isAllLinkedSelected}
               onChange={toggleAllLinked}
             />
-            全选已加入产品
+            全选本页已加入产品
           </label>
 
           <button
@@ -159,8 +310,8 @@ export function PromotionProductManager({
         </div>
 
         <div className="admin-list">
-          {linkedProducts.length > 0 ? (
-            linkedProducts.map((product) => (
+          {pagedLinkedProducts.length > 0 ? (
+            pagedLinkedProducts.map((product) => (
               <div className="admin-list-item" key={product.id}>
                 <label className="promotion-product-check">
                   <input
@@ -168,11 +319,11 @@ export function PromotionProductManager({
                     checked={selectedLinkedIds.includes(product.id)}
                     onChange={() => toggleLinked(product.id)}
                   />
+
                   <span>
                     <strong>{product.name}</strong>
                     <p>
-                      {product.categoryName} · {product.priceText} ·{" "}
-                      {product.salesCount} 销量
+                      {product.categoryName} · {product.priceText}
                     </p>
                   </span>
                 </label>
@@ -188,11 +339,87 @@ export function PromotionProductManager({
               </div>
             ))
           ) : (
-            <p className="admin-empty-text">
-              当前促销活动暂无绑定产品，请点击“去产品管理添加”。
-            </p>
+            <p className="admin-empty-text">暂无绑定产品。</p>
           )}
         </div>
+
+        <PaginationButtons
+          currentPage={safeLinkedPage}
+          totalPages={linkedTotalPages}
+          onPageChange={setLinkedPage}
+        />
+      </div>
+
+      <div className="admin-panel">
+        <div className="admin-panel-header">
+          <div>
+            <h2>可加入促销产品</h2>
+            <p>
+              从产品库中选择产品加入当前促销，共 {unlinkedProducts.length} 个可加入产品。
+            </p>
+          </div>
+        </div>
+
+        <div className="promotion-product-bulk-bar">
+          <label>
+            <input
+              type="checkbox"
+              checked={isAllUnlinkedSelected}
+              onChange={toggleAllUnlinked}
+            />
+            全选本页可加入产品
+          </label>
+
+          <button
+            type="button"
+            className="promotion-bind-btn"
+            disabled={bulkLoading || selectedUnlinkedIds.length === 0}
+            onClick={handleBulkBind}
+          >
+            批量加入 {selectedUnlinkedIds.length || ""}
+          </button>
+        </div>
+
+        <div className="admin-list">
+          {pagedUnlinkedProducts.length > 0 ? (
+            pagedUnlinkedProducts.map((product) => (
+              <div className="admin-list-item" key={product.id}>
+                <label className="promotion-product-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedUnlinkedIds.includes(product.id)}
+                    onChange={() => toggleUnlinked(product.id)}
+                  />
+
+                  <span>
+                    <strong>{product.name}</strong>
+                    <p>
+                      {product.categoryName} · {product.priceText} ·{" "}
+                      {product.salesCount} 销量
+                    </p>
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  className="promotion-bind-btn"
+                  disabled={loadingProductId === product.id}
+                  onClick={() => handleBind(product.id)}
+                >
+                  {loadingProductId === product.id ? "处理中..." : "加入促销"}
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="admin-empty-text">所有产品均已加入当前促销。</p>
+          )}
+        </div>
+
+        <PaginationButtons
+          currentPage={safeUnlinkedPage}
+          totalPages={unlinkedTotalPages}
+          onPageChange={setUnlinkedPage}
+        />
       </div>
     </section>
   );
