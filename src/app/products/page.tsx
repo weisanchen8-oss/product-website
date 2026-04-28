@@ -1,7 +1,8 @@
 /**
  * 文件作用：
  * 定义产品中心页。
- * 当前版本从数据库读取产品列表和分类信息，并统一产品卡片图片展示结构。
+ * 当前版本从数据库读取产品列表、分类信息和促销信息；
+ * 促销产品会在产品图片左上角显示促销角标。
  */
 
 import Image from "next/image";
@@ -11,6 +12,47 @@ import { PageHero } from "@/components/common/page-hero";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getProductsPageData } from "@/lib/product-data";
+
+function getPromotionDiscountScore(promotion: {
+  discountType: string;
+  discountValue: number;
+}) {
+  return promotion.discountValue;
+}
+
+function getBestActivePromotion(
+  promotionProducts: {
+    promotion: {
+      title: string;
+      discountType: string;
+      discountValue: number;
+      isActive: boolean;
+      startAt: Date;
+      endAt: Date;
+    };
+  }[]
+) {
+  const now = new Date();
+
+  const activePromotions = promotionProducts
+    .map((item) => item.promotion)
+    .filter(
+      (promotion) =>
+        promotion.isActive &&
+        promotion.startAt <= now &&
+        promotion.endAt >= now
+    );
+
+  if (activePromotions.length === 0) {
+    return null;
+  }
+
+  return activePromotions.reduce((best, current) =>
+    getPromotionDiscountScore(current) > getPromotionDiscountScore(best)
+      ? current
+      : best
+  );
+}
 
 export default async function ProductsPage() {
   const { products, categories } = await getProductsPageData();
@@ -48,24 +90,36 @@ export default async function ProductsPage() {
                   product.images.find((image) => image.isCover) ??
                   product.images[0];
 
+                const bestPromotion = getBestActivePromotion(
+                  product.promotionProducts
+                );
+
                 return (
                   <article key={product.id} className="product-card">
-                    <Link
-                      href={`/product/${product.slug}`}
-                      className="product-image-link product-link-block"
-                    >
-                      {coverImage ? (
-                        <Image
-                          src={coverImage.processedUrl ?? coverImage.originalUrl}
-                          alt={product.name}
-                          width={320}
-                          height={240}
-                          className="product-card-image"
-                        />
-                      ) : (
-                        <div className="product-image-placeholder">暂无图片</div>
-                      )}
-                    </Link>
+                    <div className="product-image-wrapper">
+                      {bestPromotion ? (
+                        <div className="product-corner-badge">促销</div>
+                      ) : null}
+
+                      <Link
+                        href={`/product/${product.slug}`}
+                        className="product-image-link product-link-block"
+                      >
+                        {coverImage ? (
+                          <Image
+                            src={coverImage.processedUrl ?? coverImage.originalUrl}
+                            alt={product.name}
+                            width={320}
+                            height={240}
+                            className="product-card-image"
+                          />
+                        ) : (
+                          <div className="product-image-placeholder">
+                            暂无图片
+                          </div>
+                        )}
+                      </Link>
+                    </div>
 
                     <div className="product-card-body">
                       <h3>

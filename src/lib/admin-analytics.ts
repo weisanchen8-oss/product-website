@@ -221,6 +221,20 @@ export async function getAdminAnalyticsData(options?: {
     Math.ceil(lowSalesProductCount / lowSalesPageSize)
   );
 
+  const promotionRecommendations = lowSalesProducts
+    .filter((product) => product.isActive)
+    .map((product) => ({
+      id: product.id,
+      name: product.name,
+      categoryName: product.category?.name || "未分类",
+      salesCount: product.salesCount,
+      reason:
+        product.salesCount <= 0
+          ? "已上架但暂无销量，适合通过促销提升曝光和询单转化。"
+          : `销量低于智能阈值 ${lowSalesThreshold}，适合加入阶段性促销活动。`,
+    }))
+    .slice(0, 5);
+
   const productAnalysis = {
     featuredProductCount,
     hotProductCount,
@@ -233,6 +247,7 @@ export async function getAdminAnalyticsData(options?: {
     activeNoSalesProductCount,
     lowSalesProducts,
     inactiveProducts,
+    promotionRecommendations,
     summary:
       lowSalesProductCount > 0
         ? `当前平均销量为 ${averageSalesCount}，系统按平均销量的 30% 自动判断低销量阈值为 ${lowSalesThreshold}，共有 ${lowSalesProductCount} 个产品需要关注。`

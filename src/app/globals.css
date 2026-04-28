@@ -6272,3 +6272,192 @@ input {
   font-size: 14px;
   line-height: 1.7;
 }
+
+.product-promotion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-bottom: 12px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.24);
+}
+
+.product-promotion-badge::before {
+  content: "限时";
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff7ed;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.product-image-wrapper {
+  position: relative;
+}
+
+/* 角标 */
+.product-corner-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+
+  padding: 6px 10px;
+  border-radius: 6px;
+
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #ffffff;
+
+  font-size: 12px;
+  font-weight: 900;
+
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.25);
+}
+
+/* 可选：更高级一点的“丝带效果” */
+.product-corner-badge::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+
+  border-width: 6px 6px 0 0;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.2) transparent transparent transparent;
+}
+
+.product-detail-promotion-box {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  margin: 18px 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff7ed 0%, #fee2e2 100%);
+  border: 1px solid #fed7aa;
+}
+
+.product-detail-promotion-label {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.product-detail-promotion-box strong {
+  display: block;
+  color: #991b1b;
+  font-size: 16px;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.product-detail-promotion-box p {
+  margin: 0;
+  color: #7c2d12;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.product-detail-promotion-box em {
+  display: block;
+  margin-top: 6px;
+  color: #9a3412;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.admin-visual-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.admin-visual-editor-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-visual-editor-grid small {
+  color: #64748b;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .admin-visual-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.promotion-recommendation-box {
+  padding: 18px;
+  margin-bottom: 22px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fff7ed 0%, #fef2f2 100%);
+  border: 1px solid #fed7aa;
+}
+
+.promotion-recommendation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.promotion-recommendation-header h3 {
+  margin: 0;
+  color: #9a3412;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.promotion-recommendation-header p {
+  margin: 6px 0 0;
+  color: #7c2d12;
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .promotion-recommendation-header {
+    flex-direction: column;
+  }
+}
+
+.admin-advanced-config {
+  margin-top: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #f8fafc;
+}
+
+.admin-advanced-config summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #475569;
+}
+
+.admin-advanced-config p {
+  margin: 10px 0;
+  color: #64748b;
+  font-size: 14px;
+}

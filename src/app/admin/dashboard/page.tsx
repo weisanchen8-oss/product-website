@@ -237,6 +237,39 @@ export default async function AdminDashboardPage({
           </div>
         </div>
 
+        <div className="promotion-recommendation-box">
+          <div className="promotion-recommendation-header">
+            <div>
+              <h3>自动推荐打折产品</h3>
+              <p>系统根据低销量、无销量和产品曝光表现，推荐适合加入促销的产品。</p>
+            </div>
+
+            <Link href="/admin/products" className="promotion-card-link">
+              去产品管理添加
+            </Link>
+          </div>
+
+          <div className="admin-list">
+            {analyticsData.productAnalysis.promotionRecommendations.length > 0 ? (
+              analyticsData.productAnalysis.promotionRecommendations.map((product) => (
+                <div className="admin-list-item" key={product.id}>
+                  <div>
+                    <strong>{product.name}</strong>
+                    <p>
+                      {product.categoryName} · {product.salesCount} 销量
+                    </p>
+                    <p>{product.reason}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="admin-empty-text">
+                暂无需要优先促销的产品，当前低销量风险较低。
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="product-analysis-columns">
           <div>
             <h3>低销量产品</h3>

@@ -6,6 +6,7 @@
  * - 单个产品详情
  * - 相关推荐
  * - 产品搜索结果
+ * - 产品关联的促销活动
  */
 
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,11 @@ export async function getProductsPageData() {
           take: 1,
         },
         category: true,
+        promotionProducts: {
+          include: {
+            promotion: true,
+          },
+        },
       },
     }),
     prisma.category.findMany({
@@ -46,6 +52,11 @@ export async function getProductDetailBySlug(slug: string) {
         orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
       },
       category: true,
+      promotionProducts: {
+        include: {
+          promotion: true,
+        },
+      },
     },
   });
 
@@ -67,6 +78,11 @@ export async function getProductDetailBySlug(slug: string) {
         where: { isCover: true },
         orderBy: { sortOrder: "asc" },
         take: 1,
+      },
+      promotionProducts: {
+        include: {
+          promotion: true,
+        },
       },
     },
     take: 3,
@@ -114,6 +130,11 @@ export async function searchProducts(keyword: string) {
         take: 1,
       },
       category: true,
+      promotionProducts: {
+        include: {
+          promotion: true,
+        },
+      },
     },
   });
 

@@ -32,6 +32,59 @@ function parseSpecs(specsJson: string | null) {
   }
 }
 
+function getPromotionDiscountScore(promotion: {
+  discountType: string;
+  discountValue: number;
+}) {
+  return promotion.discountValue;
+}
+
+function getBestActivePromotion(
+  promotionProducts: {
+    promotion: {
+      title: string;
+      description: string | null;
+      discountType: string;
+      discountValue: number;
+      isActive: boolean;
+      startAt: Date;
+      endAt: Date;
+    };
+  }[]
+) {
+  const now = new Date();
+
+  const activePromotions = promotionProducts
+    .map((item) => item.promotion)
+    .filter(
+      (promotion) =>
+        promotion.isActive &&
+        promotion.startAt <= now &&
+        promotion.endAt >= now
+    );
+
+  if (activePromotions.length === 0) {
+    return null;
+  }
+
+  return activePromotions.reduce((best, current) =>
+    getPromotionDiscountScore(current) > getPromotionDiscountScore(best)
+      ? current
+      : best
+  );
+}
+
+function getPromotionText(promotion: {
+  discountType: string;
+  discountValue: number;
+}) {
+  if (promotion.discountType === "percent") {
+    return `${promotion.discountValue}% 优惠`;
+  }
+
+  return `固定优惠 ${promotion.discountValue}`;
+}
+
 export default async function ProductDetailPage({
   params,
 }: ProductDetailPageProps) {
@@ -44,6 +97,7 @@ export default async function ProductDetailPage({
 
   const { product, relatedProducts } = data;
   const specs = parseSpecs(product.specsJson);
+  const bestPromotion = getBestActivePromotion(product.promotionProducts);
   const galleryImages = product.images.map((image) => ({
     id: image.id,
     url: image.processedUrl ?? image.originalUrl,
@@ -74,6 +128,20 @@ export default async function ProductDetailPage({
                 <p className="product-info-text">
                   {product.shortDesc}
                 </p>
+
+                {bestPromotion ? (
+                  <div className="product-detail-promotion-box">
+                    <span className="product-detail-promotion-label">限时促销</span>
+                    <div>
+                      <strong>{bestPromotion.title}</strong>
+                      <p>
+                        {getPromotionText(bestPromotion)}
+                        {bestPromotion.description ? ` · ${bestPromotion.description}` : ""}
+                      </p>
+                      <em>同一产品参与多个促销时，系统默认展示优惠力度最大的一项，优惠不可叠加。</em>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="product-tag-row">
                   <span className="product-tag">企业采购</span>
