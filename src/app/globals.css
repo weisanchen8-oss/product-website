@@ -6461,3 +6461,111 @@ input {
   color: #64748b;
   font-size: 14px;
 }
+
+.admin-adv-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.promotion-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: end;
+  min-height: 42px;
+}
+
+.promotion-form-checkbox input {
+  width: auto;
+  height: auto;
+}
+
+.promotion-form-checkbox span {
+  margin: 0;
+}
+
+.admin-content-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.admin-content-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-content-group-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.admin-content-group-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.admin-content-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-content-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 20px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-content-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-content-card-header h3 {
+  margin: 6px 0 0;
+  font-size: 20px;
+}
+
+.admin-content-card-desc {
+  color: #475569;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.admin-content-card-info {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-content-card-info p {
+  margin: 0;
+}
+
+.admin-content-card-actions {
+  margin-top: auto;
+}
+
+@media (max-width: 900px) {
+  .admin-content-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -58,6 +58,23 @@ export async function PATCH(req: Request) {
     return Response.json(promotion);
   }
 
+  if (action === "update") {
+    const promotion = await prisma.promotion.update({
+      where: { id: Number(promotionId) },
+      data: {
+        title: String(body.title || "").trim(),
+        description: String(body.description || "").trim(),
+        discountType: body.discountType,
+        discountValue: Number(body.discountValue),
+        startAt: new Date(body.startAt),
+        endAt: new Date(body.endAt),
+        isActive: Boolean(body.isActive),
+      },
+    });
+
+    return Response.json(promotion);
+  }
+
   if (action === "enable") {
     const promotion = await prisma.promotion.update({
       where: { id: Number(promotionId) },

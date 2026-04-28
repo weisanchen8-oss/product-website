@@ -4,18 +4,19 @@
  * 当前版本从数据库读取：
  * - Banner
  * - 公司简介
+ * - 企业优势
  * - 推荐产品
  * - 热销产品（人工优先 + 销量补位）
  * - 分类列表
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { HomeHero } from "@/components/home/home-hero";
 import { HomeSectionTitle } from "@/components/home/home-section-title";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getHomePageData } from "@/lib/home-data";
-import Image from "next/image";
 
 type BannerExtra = {
   primaryButtonText?: string;
@@ -24,13 +25,78 @@ type BannerExtra = {
   secondaryButtonLink?: string;
 };
 
-export default async function HomePage() {
-  const { banner, companyIntro, categories, featuredProducts, hotProducts } =
-    await getHomePageData();
+type AdvantageItem = {
+  title?: string;
+  description?: string;
+};
 
-  const bannerExtra: BannerExtra = banner?.extraJson
-    ? JSON.parse(banner.extraJson)
-    : {};
+function safeParseBannerExtra(value: string | null | undefined): BannerExtra {
+  if (!value) return {};
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function safeParseAdvantages(value: string | null | undefined): AdvantageItem[] {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((item) => ({
+        title: typeof item?.title === "string" ? item.title : "",
+        description:
+          typeof item?.description === "string" ? item.description : "",
+      }))
+      .filter((item) => item.title || item.description);
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const {
+    banner,
+    companyIntro,
+    homeAdvantages,
+    categories,
+    featuredProducts,
+    hotProducts,
+  } = await getHomePageData();
+
+  const bannerExtra = safeParseBannerExtra(banner?.extraJson);
+
+  const advantageItems = safeParseAdvantages(homeAdvantages?.content);
+
+  const fallbackAdvantages: AdvantageItem[] = [
+    {
+      title: "专业产品展示",
+      description: "突出产品信息层次，便于客户快速建立认知。",
+    },
+    {
+      title: "高效询单流程",
+      description: "支持客户快速整理需求，提升沟通效率。",
+    },
+    {
+      title: "品牌统一形象",
+      description: "统一页面风格与产品展示逻辑，增强企业可信度。",
+    },
+    {
+      title: "可持续扩展",
+      description: "后续可接入更多数据与后台配置能力。",
+    },
+  ];
+
+  const visibleAdvantages =
+    advantageItems.length > 0 ? advantageItems : fallbackAdvantages;
 
   return (
     <div className="site-shell">
@@ -61,7 +127,10 @@ export default async function HomePage() {
                 </p>
 
                 <div className="intro-link-row">
-                  <Link href="/company" className="ghost-button inline-button-link">
+                  <Link
+                    href="/company"
+                    className="ghost-button inline-button-link"
+                  >
                     查看公司介绍
                   </Link>
                 </div>
@@ -89,7 +158,10 @@ export default async function HomePage() {
                   >
                     {product.images[0] ? (
                       <Image
-                        src={product.images[0].processedUrl ?? product.images[0].originalUrl}
+                        src={
+                          product.images[0].processedUrl ??
+                          product.images[0].originalUrl
+                        }
                         alt={product.name}
                         width={320}
                         height={240}
@@ -102,7 +174,10 @@ export default async function HomePage() {
 
                   <div className="product-card-body">
                     <h3>
-                      <Link href={`/product/${product.slug}`} className="text-link">
+                      <Link
+                        href={`/product/${product.slug}`}
+                        className="text-link"
+                      >
                         {product.name}
                       </Link>
                     </h3>
@@ -141,8 +216,11 @@ export default async function HomePage() {
                     className="product-image-link product-link-block"
                   >
                     {product.images[0] ? (
-                     <Image
-                        src={product.images[0].processedUrl ?? product.images[0].originalUrl}
+                      <Image
+                        src={
+                          product.images[0].processedUrl ??
+                          product.images[0].originalUrl
+                        }
                         alt={product.name}
                         width={320}
                         height={240}
@@ -155,7 +233,10 @@ export default async function HomePage() {
 
                   <div className="product-card-body">
                     <h3>
-                      <Link href={`/product/${product.slug}`} className="text-link">
+                      <Link
+                        href={`/product/${product.slug}`}
+                        className="text-link"
+                      >
                         {product.name}
                       </Link>
                     </h3>
@@ -177,7 +258,10 @@ export default async function HomePage() {
             </div>
 
             <div className="page-actions">
-              <Link href="/search?q=热销" className="ghost-button inline-button-link">
+              <Link
+                href="/search?q=热销"
+                className="ghost-button inline-button-link"
+              >
                 查看更多热销结果
               </Link>
             </div>
@@ -212,27 +296,17 @@ export default async function HomePage() {
           <div className="container">
             <HomeSectionTitle
               eyebrow="Advantages"
-              title="企业优势"
-              description="该区域后续将继续改造为数据库或内容配置驱动。"
+              title={homeAdvantages?.title ?? "企业优势"}
+              description="该区域已支持后台内容管理配置。"
             />
 
             <div className="advantage-grid">
-              <div className="advantage-card">
-                <h3>专业产品展示</h3>
-                <p>突出产品信息层次，便于客户快速建立认知。</p>
-              </div>
-              <div className="advantage-card">
-                <h3>高效询单流程</h3>
-                <p>支持客户快速整理需求，提升沟通效率。</p>
-              </div>
-              <div className="advantage-card">
-                <h3>品牌统一形象</h3>
-                <p>统一页面风格与产品展示逻辑，增强企业可信度。</p>
-              </div>
-              <div className="advantage-card">
-                <h3>可持续扩展</h3>
-                <p>后续可接入更多数据与后台配置能力。</p>
-              </div>
+              {visibleAdvantages.map((item, index) => (
+                <div className="advantage-card" key={`${item.title}-${index}`}>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>

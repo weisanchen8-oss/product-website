@@ -156,17 +156,19 @@ export default async function AdminContentEditPage({
             <small>用于前台页面中的主标题或模块标题。</small>
           </label>
 
-          <label className="form-field">
-            <span>正文内容</span>
-            <textarea
-              name="content"
-              defaultValue={contentItem.content ?? ""}
-              placeholder="请输入对用户展示的正文内容"
-              className="admin-textarea"
-              rows={8}
-            />
-            <small>建议使用简洁、正式、适合企业展示的文字。</small>
-          </label>
+          {contentItem.contentKey !== "home_advantages" ? (
+            <label className="form-field">
+              <span>正文内容</span>
+              <textarea
+                name="content"
+                defaultValue={contentItem.content ?? ""}
+                placeholder="请输入对用户展示的正文内容"
+                className="admin-textarea"
+                rows={8}
+              />
+              <small>建议使用简洁、正式、适合企业展示的文字。</small>
+            </label>
+          ) : null}
 
           <label className="form-field">
             <span>图片地址</span>
@@ -208,6 +210,7 @@ export default async function AdminContentEditPage({
           <ContentVisualEditor
             contentKey={contentItem.contentKey}
             defaultExtraJson={contentItem.extraJson}
+            defaultContent={contentItem.content}
           />
 
           <div className="admin-form-actions">

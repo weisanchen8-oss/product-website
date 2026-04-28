@@ -4,6 +4,7 @@
  * 当前负责读取：
  * - 首页 Banner
  * - 公司简介
+ * - 企业优势
  * - 推荐产品
  * - 热销产品（人工优先 + 销量补位）
  * - 分类列表
@@ -15,6 +16,7 @@ export async function getHomePageData() {
   const [
     banner,
     companyIntro,
+    homeAdvantages,
     categories,
     featuredProducts,
     manualHotProducts,
@@ -25,6 +27,9 @@ export async function getHomePageData() {
     }),
     prisma.siteContent.findUnique({
       where: { contentKey: "home_company_intro" },
+    }),
+    prisma.siteContent.findUnique({
+      where: { contentKey: "home_advantages" },
     }),
     prisma.category.findMany({
       where: { isActive: true },
@@ -79,14 +84,13 @@ export async function getHomePageData() {
 
   const hotSlots = 4;
   const manualIds = new Set(manualHotProducts.map((item) => item.id));
-
   const autoHotProducts = autoHotCandidates.filter((item) => !manualIds.has(item.id));
-
   const hotProducts = [...manualHotProducts, ...autoHotProducts].slice(0, hotSlots);
 
   return {
     banner,
     companyIntro,
+    homeAdvantages,
     categories,
     featuredProducts,
     hotProducts,

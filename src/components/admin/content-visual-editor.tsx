@@ -2,7 +2,13 @@
  * 文件作用：
  * 内容管理可视化编辑组件。
  * 将技术化 JSON 配置转换为中文表单。
- * 高级 JSON 配置默认隐藏，点击后可展开查看和编辑。
+ * 高级 JSON 配置默认隐藏，点击后可展开查看。
+ * 当前支持：
+ * - home_banner：首页按钮配置
+ * - home_company_intro：首页公司介绍按钮配置
+ * - home_advantages：首页优势卡片内容配置
+ * - inquiry_success_contact：询单成功后的联系信息配置
+ * - 其他模块：保留高级配置入口
  */
 
 "use client";
@@ -12,6 +18,12 @@ import { useMemo, useState } from "react";
 type ContentVisualEditorProps = {
   contentKey: string;
   defaultExtraJson: string | null;
+  defaultContent: string | null;
+};
+
+type AdvantageItem = {
+  title: string;
+  description: string;
 };
 
 function safeParseJson(value: string | null) {
@@ -24,18 +36,28 @@ function safeParseJson(value: string | null) {
   }
 }
 
-function getStringValue(value: unknown) {
-  return typeof value === "string" ? value : "";
+function safeParseArray(value: string | null): AdvantageItem[] {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((item) => ({
+      title: typeof item?.title === "string" ? item.title : "",
+      description:
+        typeof item?.description === "string" ? item.description : "",
+    }));
+  } catch {
+    return [];
+  }
 }
 
-function getStringArray(value: unknown, length: number) {
-  if (!Array.isArray(value)) {
-    return Array.from({ length }, () => "");
-  }
-
-  return Array.from({ length }, (_, index) =>
-    typeof value[index] === "string" ? value[index] : ""
-  );
+function getStringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function AdvancedJsonEditor({
@@ -65,10 +87,16 @@ function AdvancedJsonEditor({
 export function ContentVisualEditor({
   contentKey,
   defaultExtraJson,
+  defaultContent,
 }: ContentVisualEditorProps) {
   const parsedJson = useMemo(
     () => safeParseJson(defaultExtraJson),
     [defaultExtraJson]
+  );
+
+  const parsedContentArray = useMemo(
+    () => safeParseArray(defaultContent),
+    [defaultContent]
   );
 
   const [primaryButtonText, setPrimaryButtonText] = useState(
@@ -84,10 +112,12 @@ export function ContentVisualEditor({
     getStringValue(parsedJson.secondaryButtonHref)
   );
 
-  const advantageItems = getStringArray(parsedJson.items, 3);
-  const [advantage1, setAdvantage1] = useState(advantageItems[0]);
-  const [advantage2, setAdvantage2] = useState(advantageItems[1]);
-  const [advantage3, setAdvantage3] = useState(advantageItems[2]);
+  const [introButtonText, setIntroButtonText] = useState(
+    getStringValue(parsedJson.buttonText) || "查看公司介绍"
+  );
+  const [introButtonHref, setIntroButtonHref] = useState(
+    getStringValue(parsedJson.buttonHref) || "/company"
+  );
 
   const [phone, setPhone] = useState(getStringValue(parsedJson.phone));
   const [email, setEmail] = useState(getStringValue(parsedJson.email));
@@ -95,6 +125,29 @@ export function ContentVisualEditor({
   const [workingHours, setWorkingHours] = useState(
     getStringValue(parsedJson.workingHours)
   );
+
+  const [advantageItems, setAdvantageItems] = useState<AdvantageItem[]>(
+    parsedContentArray.length > 0
+      ? parsedContentArray
+      : [
+          { title: "", description: "" },
+          { title: "", description: "" },
+          { title: "", description: "" },
+          { title: "", description: "" },
+        ]
+  );
+
+  function updateAdvantageItem(
+    index: number,
+    field: keyof AdvantageItem,
+    value: string
+  ) {
+    setAdvantageItems((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
+  }
 
   if (contentKey === "home_banner") {
     const visualJson = {
@@ -106,7 +159,7 @@ export function ContentVisualEditor({
 
     return (
       <div className="form-field">
-        <span>首页按钮设置</span>
+        <span>首页横幅按钮设置</span>
 
         <div className="admin-visual-editor-grid">
           <label>
@@ -155,48 +208,90 @@ export function ContentVisualEditor({
     );
   }
 
-  if (contentKey === "home_advantages") {
+  if (contentKey === "home_company_intro") {
     const visualJson = {
-      items: [advantage1, advantage2, advantage3].filter(Boolean),
+      buttonText: introButtonText,
+      buttonHref: introButtonHref,
     };
 
     return (
       <div className="form-field">
-        <span>首页优势说明</span>
+        <span>公司介绍按钮设置</span>
 
         <div className="admin-visual-editor-grid">
           <label>
-            <small>优势说明 1</small>
+            <small>按钮显示文字</small>
             <input
               type="text"
-              value={advantage1}
-              onChange={(event) => setAdvantage1(event.target.value)}
-              placeholder="例如：专业产品展示"
+              value={introButtonText}
+              onChange={(event) => setIntroButtonText(event.target.value)}
+              placeholder="例如：查看公司介绍"
             />
           </label>
 
           <label>
-            <small>优势说明 2</small>
+            <small>按钮跳转地址</small>
             <input
               type="text"
-              value={advantage2}
-              onChange={(event) => setAdvantage2(event.target.value)}
-              placeholder="例如：高效询单流程"
-            />
-          </label>
-
-          <label>
-            <small>优势说明 3</small>
-            <input
-              type="text"
-              value={advantage3}
-              onChange={(event) => setAdvantage3(event.target.value)}
-              placeholder="例如：快速客户响应"
+              value={introButtonHref}
+              onChange={(event) => setIntroButtonHref(event.target.value)}
+              placeholder="例如：/company"
             />
           </label>
         </div>
 
         <AdvancedJsonEditor value={JSON.stringify(visualJson)} />
+      </div>
+    );
+  }
+
+  if (contentKey === "home_advantages") {
+    const cleanItems = advantageItems.filter(
+      (item) => item.title.trim() || item.description.trim()
+    );
+
+    return (
+      <div className="form-field">
+        <span>首页优势展示</span>
+
+        {advantageItems.map((item, index) => (
+          <div key={index} className="admin-adv-card">
+            <strong>优势 {index + 1}</strong>
+
+            <input
+              type="text"
+              value={item.title}
+              onChange={(event) =>
+                updateAdvantageItem(index, "title", event.target.value)
+              }
+              placeholder="标题，例如：专业产品展示"
+            />
+
+            <textarea
+              value={item.description}
+              onChange={(event) =>
+                updateAdvantageItem(index, "description", event.target.value)
+              }
+              placeholder="描述，例如：突出产品信息层次，便于客户快速建立认知。"
+              className="admin-textarea"
+              rows={3}
+            />
+          </div>
+        ))}
+
+        <textarea
+          name="content"
+          value={JSON.stringify(cleanItems)}
+          readOnly
+          hidden
+        />
+
+        <AdvancedJsonEditor
+          value={defaultExtraJson ?? ""}
+          description="该模块的主要内容已通过上方中文表单维护，高级配置一般无需修改。"
+        />
+
+        <small>每一项对应前台一个优势展示卡片，空白项会自动忽略。</small>
       </div>
     );
   }
@@ -267,9 +362,7 @@ export function ContentVisualEditor({
       <details className="admin-advanced-config">
         <summary>展开高级配置</summary>
 
-        <p>
-          当前模块暂未接入专用中文表单。一般情况下可以不修改这里。
-        </p>
+        <p>当前模块暂未接入专用中文表单。一般情况下可以不修改这里。</p>
 
         <textarea
           name="extraJson"
