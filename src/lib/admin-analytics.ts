@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 后台数据看板自动分析工具。
- * 负责统计产品、询单、客户数据，并生成经营状态、风险等级、询单趋势和结构化自动建议。
+ * 负责统计产品、询单、客户数据，并生成经营状态、风险等级、询单趋势、产品运营分析和结构化自动建议。
  */
 
 import { prisma } from "@/lib/prisma";
@@ -20,7 +20,13 @@ function percent(part: number, total: number) {
   return Math.round((part / total) * 100);
 }
 
-export async function getAdminAnalyticsData() {
+export async function getAdminAnalyticsData(options?: {
+  lowSalesPage?: number;
+  lowSalesPageSize?: number;
+}) {
+  const lowSalesPage = Math.max(1, options?.lowSalesPage || 1);
+  const lowSalesPageSize = options?.lowSalesPageSize || 5;
+
   const now = new Date();
 
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -33,7 +39,6 @@ export async function getAdminAnalyticsData() {
     activeProductCount,
     featuredProductCount,
     hotProductCount,
-
     inquiryCount,
     pendingInquiryCount,
     contactingInquiryCount,
@@ -41,9 +46,7 @@ export async function getAdminAnalyticsData() {
     importantCustomerInquiryCount,
     thisMonthInquiryCount,
     lastMonthInquiryCount,
-
-    topProducts,
-    recentInquiries,
+    salesAgg,
   ] = await Promise.all([
     prisma.product.count(),
     prisma.product.count({ where: { isActive: true } }),
@@ -83,9 +86,62 @@ export async function getAdminAnalyticsData() {
         },
       },
     }),
+    prisma.product.aggregate({
+      where: {
+        isActive: true,
+      },
+      _avg: {
+        salesCount: true,
+      },
+    }),
+  ]);
 
+  const averageSalesCount = Math.round(salesAgg._avg.salesCount || 0);
+  const lowSalesThreshold = Math.max(1, Math.floor(averageSalesCount * 0.3));
+
+  const lowSalesWhere = {
+    isActive: true,
+    salesCount: {
+      lte: lowSalesThreshold,
+    },
+  };
+
+  const [
+    topProducts,
+    lowSalesProductCount,
+    lowSalesProducts,
+    inactiveProducts,
+    recentInquiries,
+  ] = await Promise.all([
     prisma.product.findMany({
       orderBy: [{ salesCount: "desc" }, { createdAt: "desc" }],
+      take: 5,
+      include: {
+        category: true,
+      },
+    }),
+
+    prisma.product.count({
+      where: lowSalesWhere,
+    }),
+
+    prisma.product.findMany({
+      where: lowSalesWhere,
+      orderBy: [{ salesCount: "asc" }, { createdAt: "desc" }],
+      skip: (lowSalesPage - 1) * lowSalesPageSize,
+      take: lowSalesPageSize,
+      include: {
+        category: true,
+      },
+    }),
+
+    prisma.product.findMany({
+      where: {
+        isActive: false,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
       take: 5,
       include: {
         category: true,
@@ -151,6 +207,38 @@ export async function getAdminAnalyticsData() {
     overallSummary = "当前询单转化和处理效率还有提升空间，建议优先推进待处理和沟通中询单。";
   }
 
+  const activeNoSalesProductCount = await prisma.product.count({
+    where: {
+      isActive: true,
+      salesCount: {
+        lte: 0,
+      },
+    },
+  });
+
+  const lowSalesTotalPages = Math.max(
+    1,
+    Math.ceil(lowSalesProductCount / lowSalesPageSize)
+  );
+
+  const productAnalysis = {
+    featuredProductCount,
+    hotProductCount,
+    averageSalesCount,
+    lowSalesThreshold,
+    lowSalesProductCount,
+    lowSalesPage,
+    lowSalesPageSize,
+    lowSalesTotalPages,
+    activeNoSalesProductCount,
+    lowSalesProducts,
+    inactiveProducts,
+    summary:
+      lowSalesProductCount > 0
+        ? `当前平均销量为 ${averageSalesCount}，系统按平均销量的 30% 自动判断低销量阈值为 ${lowSalesThreshold}，共有 ${lowSalesProductCount} 个产品需要关注。`
+        : `当前平均销量为 ${averageSalesCount}，暂无低于智能阈值 ${lowSalesThreshold} 的低销量产品。`,
+  };
+
   const highlightMetrics = [
     {
       label: "产品上架率",
@@ -195,6 +283,15 @@ export async function getAdminAnalyticsData() {
       level: "low",
       title: `产品上架率为 ${activeProductRate}%，展示基础较完整`,
       action: "可以继续优化推荐产品、热销产品和首页展示顺序，提高询单转化。",
+      href: "/admin/products",
+    });
+  }
+
+  if (lowSalesProductCount > 0) {
+    suggestions.push({
+      level: "medium",
+      title: `发现 ${lowSalesProductCount} 个智能低销量产品`,
+      action: `当前低销量阈值为 ${lowSalesThreshold}，建议优先检查这些产品的图片、标题、分类、详情页描述和前台曝光位置。`,
       href: "/admin/products",
     });
   }
@@ -268,6 +365,7 @@ export async function getAdminAnalyticsData() {
   }
 
   return {
+    productAnalysis,
     overall: {
       riskLevel,
       overallStatusText,

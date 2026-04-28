@@ -5791,3 +5791,105 @@ input {
 .insight-action-link:hover {
   background: #1e293b;
 }
+
+.product-analysis-card {
+  padding: 22px;
+  margin-bottom: 22px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.product-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.product-analysis-metric {
+  padding: 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.product-analysis-metric span {
+  display: block;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.product-analysis-metric strong {
+  display: block;
+  color: #0f172a;
+  font-size: 30px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.product-analysis-metric p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.product-analysis-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.product-analysis-columns h3 {
+  margin: 0 0 14px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .product-analysis-grid,
+  .product-analysis-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.low-sales-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.low-sales-pagination span {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.low-sales-pagination div {
+  display: flex;
+  gap: 10px;
+}
+
+.low-sales-pagination a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.low-sales-pagination a:hover {
+  background: #1e293b;
+}

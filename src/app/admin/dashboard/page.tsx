@@ -2,7 +2,7 @@
  * 文件作用：
  * 后台数据看板页面。
  * 保留原有客户、询单、产品、重点客户、热门产品数据展示；
- * 并在原页面底部新增“系统自动分析建议”模块。
+ * 在原页面基础上新增经营状态总览、询单趋势分析、产品运营分析和系统自动分析建议。
  */
 
 import Link from "next/link";
@@ -26,7 +26,19 @@ function getInquiryStatusText(status: string) {
   }
 }
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    lowSalesPage?: string;
+  }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const lowSalesPage = Math.max(
+    1,
+    Number(resolvedSearchParams?.lowSalesPage || "1")
+  );
+
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -83,7 +95,10 @@ export default async function AdminDashboardPage() {
         priceText: true,
       },
     }),
-    getAdminAnalyticsData(),
+    getAdminAnalyticsData({
+      lowSalesPage,
+      lowSalesPageSize: 5,
+    }),
   ]);
 
   return (
@@ -99,7 +114,9 @@ export default async function AdminDashboardPage() {
         </Link>
       </div>
 
-      <section className={`business-overview business-overview-${analyticsData.overall.riskLevel}`}>
+      <section
+        className={`business-overview business-overview-${analyticsData.overall.riskLevel}`}
+      >
         <div className="business-overview-main">
           <span>经营状态总览</span>
           <h2>{analyticsData.overall.overallStatusText}</h2>
@@ -117,7 +134,9 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className={`inquiry-trend-card inquiry-trend-${analyticsData.inquiryTrend.inquiryTrendType}`}>
+      <section
+        className={`inquiry-trend-card inquiry-trend-${analyticsData.inquiryTrend.inquiryTrendType}`}
+      >
         <div>
           <span>询单趋势分析</span>
           <h2>
@@ -186,6 +205,108 @@ export default async function AdminDashboardPage() {
           <span>已上架产品</span>
           <strong>{activeProductCount}</strong>
           <p>前台可见产品</p>
+        </div>
+      </section>
+
+      <section className="product-analysis-card">
+        <div className="admin-panel-header">
+          <div>
+            <h2>产品运营分析</h2>
+            <p>{analyticsData.productAnalysis.summary}</p>
+          </div>
+          <Link href="/admin/products">管理产品</Link>
+        </div>
+
+        <div className="product-analysis-grid">
+          <div className="product-analysis-metric">
+            <span>推荐产品</span>
+            <strong>{analyticsData.productAnalysis.featuredProductCount}</strong>
+            <p>首页重点展示产品</p>
+          </div>
+
+          <div className="product-analysis-metric">
+            <span>热销产品</span>
+            <strong>{analyticsData.productAnalysis.hotProductCount}</strong>
+            <p>手动标记热销产品</p>
+          </div>
+
+          <div className="product-analysis-metric">
+            <span>上架无销量</span>
+            <strong>{analyticsData.productAnalysis.activeNoSalesProductCount}</strong>
+            <p>建议优化曝光和详情页</p>
+          </div>
+        </div>
+
+        <div className="product-analysis-columns">
+          <div>
+            <h3>低销量产品</h3>
+
+            <div className="admin-list">
+              {analyticsData.productAnalysis.lowSalesProducts.length > 0 ? (
+                analyticsData.productAnalysis.lowSalesProducts.map((product) => (
+                  <div className="admin-list-item" key={product.id}>
+                    <div>
+                      <strong>{product.name}</strong>
+                      <p>{product.category?.name || "未分类"}</p>
+                    </div>
+                    <span>{product.salesCount} 销量</span>
+                  </div>
+                ))
+              ) : (
+                <p className="admin-empty-text">暂无低销量产品</p>
+              )}
+            </div>
+
+            <div className="low-sales-pagination">
+              <span>
+                第 {analyticsData.productAnalysis.lowSalesPage} /{" "}
+                {analyticsData.productAnalysis.lowSalesTotalPages} 页
+              </span>
+
+              <div>
+                {analyticsData.productAnalysis.lowSalesPage > 1 && (
+                  <Link
+                    href={`/admin/dashboard?lowSalesPage=${
+                      analyticsData.productAnalysis.lowSalesPage - 1
+                    }`}
+                  >
+                    上一页
+                  </Link>
+                )}
+
+                {analyticsData.productAnalysis.lowSalesPage <
+                  analyticsData.productAnalysis.lowSalesTotalPages && (
+                  <Link
+                    href={`/admin/dashboard?lowSalesPage=${
+                      analyticsData.productAnalysis.lowSalesPage + 1
+                    }`}
+                  >
+                    下一页
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3>未上架产品</h3>
+
+            <div className="admin-list">
+              {analyticsData.productAnalysis.inactiveProducts.length > 0 ? (
+                analyticsData.productAnalysis.inactiveProducts.map((product) => (
+                  <div className="admin-list-item" key={product.id}>
+                    <div>
+                      <strong>{product.name}</strong>
+                      <p>{product.category?.name || "未分类"}</p>
+                    </div>
+                    <span>未上架</span>
+                  </div>
+                ))
+              ) : (
+                <p className="admin-empty-text">暂无未上架产品</p>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -292,7 +413,10 @@ export default async function AdminDashboardPage() {
                   : "低优先级";
 
             return (
-              <div className={`admin-list-item insight-item insight-${item.level}`} key={index}>
+              <div
+                className={`admin-list-item insight-item insight-${item.level}`}
+                key={index}
+              >
                 <div>
                   <strong>
                     建议 {index + 1} · {levelText}
