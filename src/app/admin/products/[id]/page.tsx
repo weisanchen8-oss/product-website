@@ -14,6 +14,7 @@ import {
   uploadProductImageAction,
   setProductCoverImageAction,
   deleteProductImageAction,
+  simulateAiProcessProductImageAction,
 } from "@/app/admin/products/actions";
 import { ProductSpecsEditor } from "@/components/admin/product-specs-editor";
 import Image from "next/image";
@@ -49,6 +50,32 @@ function getErrorMessage(error?: string) {
       return "上传失败：请上传图片格式文件。";
     default:
       return "";
+  }
+}
+
+function getImageProcessingStatus(status: string) {
+  switch (status) {
+    case "processing":
+      return {
+        text: "处理中",
+        className: "admin-ai-status admin-ai-status-processing",
+      };
+    case "success":
+      return {
+        text: "处理成功",
+        className: "admin-ai-status admin-ai-status-success",
+      };
+    case "failed":
+      return {
+        text: "处理失败",
+        className: "admin-ai-status admin-ai-status-failed",
+      };
+    case "idle":
+    default:
+      return {
+        text: "未处理",
+        className: "admin-ai-status admin-ai-status-idle",
+      };
   }
 }
 
@@ -120,6 +147,10 @@ export default async function AdminProductEditPage({
 
       {success === "image-deleted" ? (
         <AdminActionToast message="产品图片删除成功。" />
+      ) : null}
+
+      {success === "ai-image-processed" ? (
+        <AdminActionToast message="AI 图片优化处理成功。" />
       ) : null}
 
       {errorMessage ? <AdminActionToast message={errorMessage} /> : null}
@@ -314,11 +345,27 @@ export default async function AdminProductEditPage({
 
                 <div className="admin-image-info">
                   <strong>{image.isCover ? "当前封面图" : "产品图片"}</strong>
-                  <p>处理状态：{image.processingStatus}</p>
+                  {(() => {
+                    const statusInfo = getImageProcessingStatus(image.processingStatus);
+
+                    return (
+                      <p>
+                        AI处理状态：
+                        <span className={statusInfo.className}>{statusInfo.text}</span>
+                      </p>
+                    );
+                  })()}
                   <p>图片地址：{image.processedUrl ?? image.originalUrl}</p>
                 </div>
 
                 <div className="admin-image-actions">
+                  <form action={simulateAiProcessProductImageAction}>
+                    <input type="hidden" name="productId" value={product.id} />
+                    <input type="hidden" name="imageId" value={image.id} />
+                    <button type="submit" className="ghost-button">
+                      {image.isProcessed ? "重新AI优化" : "AI优化图片"}
+                    </button>
+                  </form>
                   {image.isCover ? (
                     <span className="admin-cover-badge">已设为封面</span>
                   ) : (

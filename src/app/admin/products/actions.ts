@@ -190,6 +190,57 @@ function getUpdateErrorRedirect(id: number, error: unknown) {
   return `/admin/products/${id}?error=update-failed`;
 }
 
+async function saveUploadedProductImages(options: {
+  productId: number;
+  productSlug: string;
+  files: File[];
+  existingImageCount?: number;
+}) {
+  const validFiles = options.files.filter(
+    (file) => file instanceof File && file.size > 0 && file.type.startsWith("image/")
+  );
+
+  if (validFiles.length === 0) {
+    return [];
+  }
+
+  const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  const createdImages = [];
+
+  for (let index = 0; index < validFiles.length; index += 1) {
+    const file = validFiles[index];
+    const fileExtension = file.name.split(".").pop() || "png";
+    const safeFileName = `${options.productSlug}-${Date.now()}-${index}.${fileExtension}`;
+    const filePath = path.join(uploadDir, safeFileName);
+
+    const arrayBuffer = await file.arrayBuffer();
+    await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+
+    const publicUrl = `/uploads/products/${safeFileName}`;
+    const sortOrder = (options.existingImageCount ?? 0) + index + 1;
+
+    const image = await prisma.productImage.create({
+      data: {
+        productId: options.productId,
+        originalUrl: publicUrl,
+        processedUrl: null,
+        isProcessed: false,
+        processingStatus: "idle",
+        processingError: null,
+        logoApplied: false,
+        isCover: sortOrder === 1,
+        sortOrder,
+      },
+    });
+
+    createdImages.push(image);
+  }
+
+  return createdImages;
+}
+
 async function deleteProductUploadFile(imageUrl: string) {
   if (!imageUrl.startsWith("/uploads/products/")) {
     return;
@@ -293,6 +344,17 @@ export async function createProductAction(formData: FormData) {
       data: payload,
     });
 
+    const imageFiles = formData
+      .getAll("images")
+      .filter((item): item is File => item instanceof File);
+
+    const createdImages = await saveUploadedProductImages({
+      productId: product.id,
+      productSlug: product.slug,
+      files: imageFiles,
+      existingImageCount: 0,
+    });
+
     await createAdminLog({
       module: "product",
       action: "create",
@@ -300,7 +362,10 @@ export async function createProductAction(formData: FormData) {
       targetName: product.name,
       note: `新增产品：${product.name}`,
       beforeData: null,
-      afterData: getProductSnapshot(product),
+      afterData: {
+        product: getProductSnapshot(product),
+        images: createdImages.map(getImageSnapshot),
+      },
     });
   } catch {
     redirect("/admin/products/new?error=create-failed");
@@ -432,6 +497,64 @@ export async function uploadProductImageAction(formData: FormData) {
   revalidateProductPaths(product.slug, productId);
 
   redirect(`/admin/products/${productId}?success=image-uploaded`);
+}
+
+export async function simulateAiProcessProductImageAction(formData: FormData) {
+  const productId = Number(formData.get("productId"));
+  const imageId = Number(formData.get("imageId"));
+
+  if (!productId || Number.isNaN(productId)) {
+    throw new Error("无效的产品 ID。");
+  }
+
+  if (!imageId || Number.isNaN(imageId)) {
+    throw new Error("无效的图片 ID。");
+  }
+
+  const image = await prisma.productImage.findUnique({
+    where: { id: imageId },
+    include: {
+      product: true,
+    },
+  });
+
+  if (!image || image.productId !== productId) {
+    redirect(`/admin/products/${productId}?error=image-not-found`);
+  }
+
+  const oldImageSnapshot = getImageSnapshot(image);
+
+  const updatedImage = await prisma.productImage.update({
+    where: { id: imageId },
+    data: {
+      processedUrl: image.originalUrl,
+      isProcessed: true,
+      processingStatus: "success",
+      processingError: null,
+      aiProvider: "mock",
+      processedAt: new Date(),
+    },
+  });
+
+  await createAdminLog({
+    module: "product",
+    action: "ai_image_process_mock",
+    targetId: image.product.id,
+    targetName: image.product.name,
+    note: `模拟 AI 优化产品图片：${image.product.name}`,
+    beforeData: {
+      product: getProductSnapshot(image.product),
+      image: oldImageSnapshot,
+    },
+    afterData: {
+      product: getProductSnapshot(image.product),
+      image: getImageSnapshot(updatedImage),
+    },
+  });
+
+  revalidateProductPaths(image.product.slug, productId);
+
+  redirect(`/admin/products/${productId}?success=ai-image-processed`);
 }
 
 export async function setProductCoverImageAction(formData: FormData) {

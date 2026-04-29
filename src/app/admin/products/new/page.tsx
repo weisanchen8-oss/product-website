@@ -63,7 +63,11 @@ export default async function AdminProductNewPage({
       </div>
 
       <div className="admin-form-card">
-        <form action={createProductAction} className="stack-form">
+        <form
+          action={createProductAction}
+          className="stack-form"
+          encType="multipart/form-data"
+        >
           <label className="form-field">
             <span>产品名称 *</span>
             <input type="text" name="name" placeholder="例如：工业设备基础款 A" />
@@ -133,6 +137,35 @@ export default async function AdminProductNewPage({
           </label>
 
           <ProductSpecsEditor />
+
+          <div className="admin-form-section">
+            <h2>产品图片</h2>
+            <p className="form-help-text">
+              可上传多张产品图片。第一张图片默认可作为产品展示封面，后续将支持 AI 自动抠图、白底图和水印处理。
+            </p>
+
+            <label className="form-field">
+              <span>上传产品图片</span>
+              <input
+                type="file"
+                name="images"
+                accept="image/*"
+                multiple
+              />
+              <small className="form-help-text">
+                支持 JPG、PNG、WebP 等常见图片格式，可一次选择多张。
+              </small>
+            </label>
+
+            <label className="admin-checkbox-field">
+              <input type="checkbox" name="enableAiImageProcessing" />
+              <span>启用 AI 图片优化处理</span>
+            </label>
+
+            <small className="form-help-text">
+              当前阶段先恢复上传入口；下一步会接入后端 AI 处理流程，避免 API Key 暴露在前端。
+            </small>
+          </div>
 
           <label className="form-field">
             <span>销量数（可选）</span>

@@ -92,18 +92,44 @@ model PromotionProduct {
 }
 
 model ProductImage {
-  id               Int      @id @default(autoincrement())
-  productId        Int
-  originalUrl      String
-  processedUrl     String?
-  isProcessed      Boolean  @default(false)
-  processingStatus String   @default("pending")
-  processingError  String?
-  logoApplied      Boolean  @default(false)
-  sortOrder        Int      @default(0)
-  isCover          Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  Int       @id @default(autoincrement())
+  productId           Int
+
+  // 原图地址：用户上传后的原始产品图片
+  originalUrl         String
+
+  // AI处理后的图片地址：例如白底图、去背景图、水印图
+  processedUrl        String?
+
+  // 是否已经成功生成处理图
+  isProcessed         Boolean   @default(false)
+
+  // AI处理状态：
+  // idle = 未处理
+  // processing = 处理中
+  // success = 处理成功
+  // failed = 处理失败
+  processingStatus    String    @default("idle")
+
+  // AI处理失败时记录错误原因
+  processingError     String?
+
+  // 实际使用的AI服务商，例如 removebg / replicate / photoroom
+  aiProvider          String?
+
+  // AI处理完成时间
+  processedAt         DateTime?
+
+  // 是否优先使用处理图作为封面展示
+  useProcessedAsCover Boolean   @default(false)
+
+  // 是否已添加Logo或水印
+  logoApplied         Boolean   @default(false)
+
+  sortOrder           Int       @default(0)
+  isCover             Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   product Product @relation(fields: [productId], references: [id])
 }

@@ -1,11 +1,13 @@
 /**
  * 文件作用：
  * 定义行业风险监控模块的后台操作方法。
- * 当前负责新增监控指标，并在保存后跳转回行业风险监控列表页。
+ * 当前负责新增、更新、启用/停用和删除监控指标，
+ * 并在操作完成后刷新或跳转回行业风险监控页面。
  */
 
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
@@ -26,7 +28,7 @@ function calculateRiskLevel(
   return "normal";
 }
 
-export async function createMarketMonitorIndicator(formData: FormData) {
+function readIndicatorFormData(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const type = String(formData.get("type") || "other");
   const currentValue = Number(formData.get("currentValue"));
@@ -56,20 +58,75 @@ export async function createMarketMonitorIndicator(formData: FormData) {
     compareMode
   );
 
+  return {
+    name,
+    type,
+    currentValue,
+    warningThreshold,
+    dangerThreshold,
+    compareMode,
+    unit: unit || null,
+    description: description || null,
+    isActive,
+    riskLevel,
+  };
+}
+
+export async function createMarketMonitorIndicator(formData: FormData) {
+  const data = readIndicatorFormData(formData);
+
   await prisma.marketMonitorIndicator.create({
-    data: {
-      name,
-      type,
-      currentValue,
-      warningThreshold,
-      dangerThreshold,
-      compareMode,
-      unit: unit || null,
-      description: description || null,
-      isActive,
-      riskLevel,
-    },
+    data,
   });
 
   redirect("/admin/market-monitor");
+}
+
+export async function updateMarketMonitorIndicator(
+  id: string,
+  formData: FormData
+) {
+  const data = readIndicatorFormData(formData);
+
+  await prisma.marketMonitorIndicator.update({
+    where: {
+      id,
+    },
+    data,
+  });
+
+  redirect("/admin/market-monitor");
+}
+
+export async function toggleMarketMonitorIndicator(id: string) {
+  const indicator = await prisma.marketMonitorIndicator.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!indicator) {
+    throw new Error("监控指标不存在");
+  }
+
+  await prisma.marketMonitorIndicator.update({
+    where: {
+      id,
+    },
+    data: {
+      isActive: !indicator.isActive,
+    },
+  });
+
+  revalidatePath("/admin/market-monitor");
+}
+
+export async function deleteMarketMonitorIndicator(id: string) {
+  await prisma.marketMonitorIndicator.delete({
+    where: {
+      id,
+    },
+  });
+
+  revalidatePath("/admin/market-monitor");
 }

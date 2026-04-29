@@ -3,12 +3,17 @@
  * 定义后台行业风险监控列表页。
  * 当前页面用于展示汇率、国际运费、关税政策、市场风险等监控指标，
  * 并根据当前值、预警阈值和高风险阈值实时计算正常 / 预警 / 高风险状态。
+ * 同时支持编辑、启用/停用和删除入口。
  */
 
 import Link from "next/link";
+import { MarketMonitorIndicator } from "@prisma/client";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { prisma } from "@/lib/prisma";
-import { MarketMonitorIndicator } from "@prisma/client";
+import {
+  deleteMarketMonitorIndicator,
+  toggleMarketMonitorIndicator,
+} from "./actions";
 
 function getRiskStatus(indicator: MarketMonitorIndicator) {
   const { currentValue, warningThreshold, dangerThreshold, compareMode } =
@@ -153,7 +158,7 @@ export default async function AdminMarketMonitorPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[950px] text-left text-sm">
+              <table className="w-full min-w-[1100px] text-left text-sm">
                 <thead className="bg-slate-50 text-slate-500">
                   <tr>
                     <th className="px-6 py-3 font-medium">指标名称</th>
@@ -164,6 +169,7 @@ export default async function AdminMarketMonitorPage() {
                     <th className="px-6 py-3 font-medium">实时状态</th>
                     <th className="px-6 py-3 font-medium">启用状态</th>
                     <th className="px-6 py-3 font-medium">更新时间</th>
+                    <th className="px-6 py-3 font-medium">操作</th>
                   </tr>
                 </thead>
 
@@ -225,6 +231,35 @@ export default async function AdminMarketMonitorPage() {
 
                         <td className="px-6 py-4 text-slate-500">
                           {item.updatedAt.toLocaleString("zh-CN")}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            <Link
+                              href={`/admin/market-monitor/${item.id}/edit`}
+                              className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-900 hover:text-white"
+                            >
+                              编辑
+                            </Link>
+
+                            <form action={toggleMarketMonitorIndicator.bind(null, item.id)}>
+                              <button
+                                type="submit"
+                                className="inline-flex items-center justify-center rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-600 hover:text-white"
+                              >
+                                {item.isActive ? "停用" : "启用"}
+                              </button>
+                            </form>
+
+                            <form action={deleteMarketMonitorIndicator.bind(null, item.id)}>
+                              <button
+                                type="submit"
+                                className="inline-flex items-center justify-center rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-600 hover:text-white"
+                              >
+                                删除
+                              </button>
+                            </form>
+                          </div>
                         </td>
                       </tr>
                     );

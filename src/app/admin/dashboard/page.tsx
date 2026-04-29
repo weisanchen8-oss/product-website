@@ -2,13 +2,14 @@
  * 文件作用：
  * 后台数据看板页面。
  * 保留原有客户、询单、产品、重点客户、热门产品数据展示；
- * 在原页面基础上新增经营状态总览、询单趋势分析、产品运营分析和系统自动分析建议。
+ * 在原页面基础上新增经营状态总览、询单趋势分析、产品运营分析、行业风险提醒和系统自动分析建议。
  */
 
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { prisma } from "@/lib/prisma";
 import { getAdminAnalyticsData } from "@/lib/admin-analytics";
+import { getMarketRiskAlerts } from "@/lib/market-monitor";
 
 function getInquiryStatusText(status: string) {
   switch (status) {
@@ -34,6 +35,8 @@ export default async function AdminDashboardPage({
   }>;
 }) {
   const resolvedSearchParams = await searchParams;
+  const marketRiskAlerts = await getMarketRiskAlerts();
+
   const lowSalesPage = Math.max(
     1,
     Number(resolvedSearchParams?.lowSalesPage || "1")
@@ -132,6 +135,82 @@ export default async function AdminDashboardPage({
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="admin-panel">
+        <div className="admin-panel-header">
+          <div>
+            <h2>行业风险提醒</h2>
+            <p>
+              根据当前启用的汇率、国际运费、关税政策和市场风险指标自动判断是否需要关注。
+            </p>
+          </div>
+        
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span>
+              {marketRiskAlerts.length > 0
+                ? `${marketRiskAlerts.length} 项需关注`
+                : "暂无风险"}
+            </span>
+        
+            <Link href="/admin/market-monitor" className="insight-action-link">
+              进入风险监控 →
+            </Link>
+          </div>
+        </div>
+        
+        {marketRiskAlerts.length === 0 ? (
+          <div className="admin-empty-text">
+            <p>
+              当前暂无超过阈值的行业风险指标，报价策略暂未发现明显外部风险。
+            </p>
+
+            <Link
+              href="/admin/market-monitor"
+              style={{ marginTop: 8, display: "inline-block" }}
+              className="insight-action-link"
+            >
+              去查看监控指标 →
+            </Link>
+          </div>
+        ) : (
+          <div className="admin-list">
+            {marketRiskAlerts.slice(0, 5).map((item) => (
+              <div
+                key={item.id}
+                className={`admin-list-item insight-item ${
+                  item.riskStatus.level === "danger"
+                    ? "insight-high"
+                    : "insight-medium"
+                }`}
+              >
+                <div>
+                  <strong>
+                    {item.name}｜{item.riskStatus.label}
+                  </strong>
+
+                  <p>
+                    当前值：{item.currentValue}
+                    {item.unit ? ` ${item.unit}` : ""}，预警阈值：
+                    {item.warningThreshold}
+                    {item.unit ? ` ${item.unit}` : ""}，高风险阈值：
+                    {item.dangerThreshold}
+                    {item.unit ? ` ${item.unit}` : ""}
+                  </p>
+        
+                  <p>{item.suggestion}</p>
+                </div>
+        
+                <Link
+                  href="/admin/market-monitor"
+                  className="insight-action-link"
+                >
+                  去处理
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section
@@ -250,18 +329,21 @@ export default async function AdminDashboardPage({
           </div>
 
           <div className="admin-list">
-            {analyticsData.productAnalysis.promotionRecommendations.length > 0 ? (
-              analyticsData.productAnalysis.promotionRecommendations.map((product) => (
-                <div className="admin-list-item" key={product.id}>
-                  <div>
-                    <strong>{product.name}</strong>
-                    <p>
-                      {product.categoryName} · {product.salesCount} 销量
-                    </p>
-                    <p>{product.reason}</p>
+            {analyticsData.productAnalysis.promotionRecommendations.length >
+            0 ? (
+              analyticsData.productAnalysis.promotionRecommendations.map(
+                (product) => (
+                  <div className="admin-list-item" key={product.id}>
+                    <div>
+                      <strong>{product.name}</strong>
+                      <p>
+                        {product.categoryName} · {product.salesCount} 销量
+                      </p>
+                      <p>{product.reason}</p>
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              )
             ) : (
               <p className="admin-empty-text">
                 暂无需要优先促销的产品，当前低销量风险较低。
