@@ -24,6 +24,7 @@ model Category {
   name        String
   slug        String   @unique
   description String?
+  imageUrl    String?
   parentId    Int?
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
@@ -207,4 +208,58 @@ model AdminLog {
   rolledBackAt      DateTime?
   rollbackFromLogId Int?
   createdAt         DateTime  @default(now())
+}
+
+/// 文件作用：
+/// 行业风险监控指标表。
+/// 用于手动维护汇率、国际运费、关税政策、市场风险等指标，
+/// 并通过预警阈值和高风险阈值判断是否需要提醒管理员核对售价、运费或报价策略。
+model MarketMonitorIndicator {
+  id String @id @default(cuid())
+
+  /// 指标名称，例如：美元兑人民币汇率、海运费指数、美国关税政策风险
+  name String
+
+  /// 指标类型：
+  /// exchange_rate 汇率
+  /// shipping 国际运费
+  /// tariff_policy 关税政策
+  /// market_risk 市场风险
+  /// other 其他
+  type String
+
+  /// 当前值
+  currentValue Float
+
+  /// 预警阈值
+  warningThreshold Float
+
+  /// 高风险阈值
+  dangerThreshold Float
+
+  /// 阈值比较方向：
+  /// gte 表示当前值 >= 阈值时触发风险
+  /// lte 表示当前值 <= 阈值时触发风险
+  compareMode String @default("gte")
+
+  /// 单位，例如：%、USD、CNY、指数点
+  unit String?
+
+  /// 风险等级：
+  /// normal 正常
+  /// warning 预警
+  /// danger 高风险
+  riskLevel String @default("normal")
+
+  /// 风险说明
+  description String?
+
+  /// 是否启用
+  isActive Boolean @default(true)
+
+  /// 创建时间
+  createdAt DateTime @default(now())
+
+  /// 更新时间
+  updatedAt DateTime @updatedAt
 }

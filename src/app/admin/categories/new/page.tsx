@@ -1,7 +1,14 @@
 /**
  * 文件作用：
  * 定义后台新增分类页。
- * 当前版本支持 slug 自动生成和排序自动补位，降低普通员工使用难度。
+ * 支持：
+ * - 分类名称填写
+ * - Slug 自动生成
+ * - 分类说明
+ * - 分类图标地址填写
+ * - 分类图标本地上传
+ * - 父级分类选择
+ * - 排序自动补位
  */
 
 import Link from "next/link";
@@ -43,10 +50,13 @@ export default async function AdminCategoryNewPage({
       <div className="admin-page-header">
         <div>
           <h1>新增分类</h1>
-          <p>只需要填写分类名称即可；Slug 和排序都可以由系统自动处理。</p>
+          <p>填写分类名称、说明和图标后，可在首页产品分类区域展示。</p>
         </div>
 
-        <Link href="/admin/categories" className="ghost-button inline-button-link">
+        <Link
+          href="/admin/categories"
+          className="ghost-button inline-button-link"
+        >
           返回分类管理
         </Link>
       </div>
@@ -55,9 +65,13 @@ export default async function AdminCategoryNewPage({
         <form action={createCategoryAction} className="stack-form">
           <label className="form-field">
             <span>分类名称 *</span>
-            <input type="text" name="name" placeholder="例如：工业设备、办公用品" />
+            <input
+              type="text"
+              name="name"
+              placeholder="例如：工业设备、办公用品"
+            />
             <small className="form-help-text">
-              必填。员工只需要填写这个字段，就可以创建分类。
+              必填。分类名称会显示在前台产品分类卡片中。
             </small>
           </label>
 
@@ -65,7 +79,7 @@ export default async function AdminCategoryNewPage({
             <span>Slug（可选）</span>
             <input type="text" name="slug" placeholder="可不填，系统会自动生成" />
             <small className="form-help-text">
-              用于网址中的分类标识。一般无需填写；如果不填，系统会根据分类名称自动生成。
+              用于网址中的分类标识。一般无需填写。
             </small>
           </label>
 
@@ -77,6 +91,26 @@ export default async function AdminCategoryNewPage({
               className="admin-textarea"
               rows={5}
             />
+          </label>
+
+          <label className="form-field">
+            <span>分类图标地址（可选）</span>
+            <input
+              type="text"
+              name="imageUrl"
+              placeholder="可填写图片地址，也可以直接在下方上传"
+            />
+            <small className="form-help-text">
+              图片会用于首页产品分类卡片。若上传本地图片，会自动生成地址。
+            </small>
+          </label>
+
+          <label className="form-field">
+            <span>上传分类图标</span>
+            <input type="file" name="imageFile" accept="image/*" />
+            <small className="form-help-text">
+              支持 jpg、png、webp、svg，最大 5MB。建议使用方形图标或简洁图片。
+            </small>
           </label>
 
           <label className="form-field">
