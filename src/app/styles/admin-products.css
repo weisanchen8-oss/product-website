@@ -608,3 +608,107 @@
   background: #fee2e2;
   color: #b91c1c;
 }
+
+.admin-watermark-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-watermark-input {
+  min-width: 140px;
+  max-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.admin-batch-watermark-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.admin-image-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* 水印工具条 */
+.admin-batch-watermark-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  padding: 16px 20px;
+  margin-bottom: 20px;
+
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+/* 输入区 */
+.admin-watermark-input-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 输入框统一 */
+.admin-input {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+}
+
+/* 按钮区 */
+.admin-watermark-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.watermark-action-button {
+  height: 44px;
+  min-width: 118px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid #0f172a;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.watermark-action-button-primary {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.watermark-action-button-secondary {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.watermark-action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}

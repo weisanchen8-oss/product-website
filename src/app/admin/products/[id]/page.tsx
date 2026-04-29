@@ -16,6 +16,8 @@ import {
   setProductCoverImageAction,
   deleteProductImageAction,
   processProductImageWithAiAction,
+  applyTextWatermarkToSelectedProductImagesAction,
+  applyLogoWatermarkToSelectedProductImagesAction,
 } from "@/app/admin/products/actions";
 import { ProductSpecsEditor } from "@/components/admin/product-specs-editor";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
@@ -49,6 +51,18 @@ function getErrorMessage(error?: string) {
       return "上传失败：请上传图片格式文件。";
     case "ai-image-failed":
       return "AI 图片优化失败：请检查 API Key、图片格式或 remove.bg 额度。";
+    case "missing-watermark-text":
+      return "添加水印失败：请输入水印文字。";
+    case "watermark-failed":
+      return "添加水印失败：请检查图片是否存在或稍后重试。";
+    case "missing-logo-file":
+      return "添加 Logo 水印失败：请先选择 Logo 图片。";
+    case "missing-selected-images":
+      return "添加水印失败：请先勾选要加水印的图片。";
+    case "invalid-logo-file":
+      return "添加 Logo 水印失败：请上传图片格式的 Logo 文件。";
+    case "logo-watermark-failed":
+      return "添加 Logo 水印失败：请检查图片是否存在或稍后重试。";
     default:
       return "";
   }
@@ -148,6 +162,14 @@ export default async function AdminProductEditPage({
 
       {success === "image-deleted" ? (
         <AdminActionToast message="产品图片删除成功。" />
+      ) : null}
+
+      {success === "watermark-applied" ? (
+        <AdminActionToast message="文字水印添加成功。" />
+      ) : null}
+
+      {success === "logo-watermark-applied" ? (
+        <AdminActionToast message="Logo 水印添加成功。" />
       ) : null}
 
       {success === "ai-image-processed" ? (
@@ -340,14 +362,68 @@ export default async function AdminProductEditPage({
           </button>
         </form>
 
+        <form
+          id="batch-watermark-form"
+          action={applyTextWatermarkToSelectedProductImagesAction}
+          className="admin-batch-watermark-bar"
+        >
+          <input type="hidden" name="productId" value={product.id} />
+
+          {/* 左侧输入区 */}
+          <div className="admin-watermark-input-group">
+            <input
+              type="file"
+              name="logoFile"
+              accept="image/*"
+              className="admin-input"
+            />
+
+            <input
+              type="text"
+              name="watermarkText"
+              placeholder="输入统一水印文字"
+              className="admin-input"
+            />
+          </div>
+
+          {/* 右侧按钮区 */}
+          <div className="admin-watermark-actions">
+            <SubmitButton
+              className="watermark-action-button watermark-action-button-secondary"
+              loadingText="加Logo中..."
+              formAction={applyLogoWatermarkToSelectedProductImagesAction}
+            >
+              加Logo水印
+            </SubmitButton>
+            
+            <SubmitButton
+              className="watermark-action-button watermark-action-button-primary"
+              loadingText="加水印中..."
+            >
+              加文字水印
+            </SubmitButton>
+          </div>
+        </form>
+
         <div className="admin-image-list">
           {product.images.length > 0 ? (
             product.images.map((image) => {
               const statusInfo = getImageProcessingStatus(image.processingStatus);
-              const displayUrl = image.processedUrl ?? image.originalUrl;
+              const displayUrl =
+                image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
 
               return (
                 <div key={image.id} className="admin-image-item">
+                  <label className="admin-image-select">
+                    <input
+                      type="checkbox"
+                      name="imageIds"
+                      value={image.id}
+                      form="batch-watermark-form"
+                    />
+                    <span>选择</span>
+                  </label>
+
                   <Image
                     src={displayUrl}
                     alt={product.name}

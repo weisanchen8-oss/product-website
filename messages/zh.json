@@ -1,0 +1,16 @@
+{
+  "Common": {
+    "siteName": "B2B 产品展示系统",
+    "home": "首页",
+    "products": "产品中心",
+    "inquiry": "提交询单",
+    "language": "语言",
+    "currency": "货币"
+  },
+  "HomePage": {
+    "title": "专业产品展示与询单平台",
+    "subtitle": "面向国际客户展示产品，快速收集询单，提升外贸业务效率。",
+    "viewProducts": "查看产品",
+    "submitInquiry": "提交询单"
+  }
+}

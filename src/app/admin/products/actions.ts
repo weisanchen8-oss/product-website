@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { createAdminLog } from "@/lib/admin-log";
 import { removeBackgroundWithRemoveBg } from "@/lib/ai-image/providers/removebg";
 import { createWhiteBackgroundImage } from "@/lib/ai-image/white-background";
+import { createTextWatermarkImage } from "@/lib/ai-image/text-watermark";
+import { createLogoWatermarkImage } from "@/lib/ai-image/logo-watermark";
 
 function normalizeSlug(value: string) {
   return value
@@ -661,6 +663,281 @@ export async function processProductImageWithAiAction(formData: FormData) {
   redirect(`/admin/products/${productId}?success=ai-image-processed`);
 }
 
+export async function applyTextWatermarkToProductImageAction(formData: FormData) {
+  const productId = Number(formData.get("productId"));
+  const imageId = Number(formData.get("imageId"));
+  const watermarkText = String(formData.get("watermarkText") ?? "").trim();
+
+  if (!productId || Number.isNaN(productId)) {
+    throw new Error("无效的产品 ID。");
+  }
+
+  if (!imageId || Number.isNaN(imageId)) {
+    throw new Error("无效的图片 ID。");
+  }
+
+  if (!watermarkText) {
+    redirect(`/admin/products/${productId}?error=missing-watermark-text`);
+  }
+
+  const image = await prisma.productImage.findUnique({
+    where: { id: imageId },
+    include: { product: true },
+  });
+
+  if (!image || image.productId !== productId) {
+    redirect(`/admin/products/${productId}?error=image-not-found`);
+  }
+
+  const sourceUrl =
+    image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+
+  const sourceFilePath = path.join(
+    process.cwd(),
+    "public",
+    sourceUrl.replace(/^\/+/, "")
+  );
+
+  console.log("水印源路径：", sourceFilePath);
+
+  await fs.access(sourceFilePath); // 检查文件是否存在
+
+  try {
+    const watermarkedBuffer = await createTextWatermarkImage({
+      inputFilePath: sourceFilePath,
+      watermarkText,
+    });
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const watermarkedFileName = `${image.product.slug}-${Date.now()}-watermarked.png`;
+    const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
+    const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
+
+    await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+
+    const updatedImage = await prisma.productImage.update({
+      where: { id: imageId },
+      data: {
+        watermarkedUrl: watermarkedPublicUrl,
+        watermarkType: "text",
+        watermarkText,
+        watermarkAppliedAt: new Date(),
+        logoApplied: true,
+      },
+    });
+
+    await createAdminLog({
+      module: "product",
+      action: "image_text_watermark",
+      targetId: image.product.id,
+      targetName: image.product.name,
+      note: `添加文字水印：${image.product.name}`,
+      beforeData: {
+        product: getProductSnapshot(image.product),
+        image: getImageSnapshot(image),
+      },
+      afterData: {
+        product: getProductSnapshot(image.product),
+        image: getImageSnapshot(updatedImage),
+      },
+    });
+
+    revalidateProductPaths(image.product.slug, productId);
+  } catch (error) {
+    console.error("文字水印处理错误：", error);
+    redirect(`/admin/products/${productId}?error=watermark-failed`);
+  }
+
+  redirect(`/admin/products/${productId}?success=watermark-applied`);
+}
+
+export async function applyTextWatermarkToSelectedProductImagesAction(
+  formData: FormData
+) {
+  const productId = Number(formData.get("productId"));
+  const watermarkText = String(formData.get("watermarkText") ?? "").trim();
+
+  const imageIds = formData
+    .getAll("imageIds")
+    .map((value) => Number(value))
+    .filter((id) => id && !Number.isNaN(id));
+
+  if (!productId || Number.isNaN(productId)) {
+    throw new Error("无效的产品 ID。");
+  }
+
+  if (!watermarkText) {
+    redirect(`/admin/products/${productId}?error=missing-watermark-text`);
+  }
+
+  if (imageIds.length === 0) {
+    redirect(`/admin/products/${productId}?error=missing-selected-images`);
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+  });
+
+  if (!product) {
+    redirect("/admin/products?error=product-not-found");
+  }
+
+  try {
+    const images = await prisma.productImage.findMany({
+      where: {
+        productId,
+        id: {
+          in: imageIds,
+        },
+      },
+    });
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    for (const image of images) {
+      const sourceUrl =
+        image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+
+      const sourceFilePath = path.join(
+        process.cwd(),
+        "public",
+        sourceUrl.replace(/^\/+/, "")
+      );
+
+      await fs.access(sourceFilePath);
+
+      const watermarkedBuffer = await createTextWatermarkImage({
+        inputFilePath: sourceFilePath,
+        watermarkText,
+      });
+
+      const watermarkedFileName = `${product.slug}-${Date.now()}-${image.id}-watermarked.png`;
+      const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
+      const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
+
+      await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+
+      await prisma.productImage.update({
+        where: { id: image.id },
+        data: {
+          watermarkedUrl: watermarkedPublicUrl,
+          watermarkType: "text",
+          watermarkText,
+          watermarkAppliedAt: new Date(),
+          logoApplied: true,
+        },
+      });
+    }
+
+    revalidateProductPaths(product.slug, productId);
+  } catch (error) {
+    console.error("批量文字水印处理错误：", error);
+    redirect(`/admin/products/${productId}?error=watermark-failed`);
+  }
+
+  redirect(`/admin/products/${productId}?success=watermark-applied`);
+}
+
+export async function applyLogoWatermarkToProductImageAction(formData: FormData) {
+  const productId = Number(formData.get("productId"));
+  const imageId = Number(formData.get("imageId"));
+  const logoFileValue = formData.get("logoFile");
+
+  if (!productId || Number.isNaN(productId)) {
+    throw new Error("无效的产品 ID。");
+  }
+
+  if (!imageId || Number.isNaN(imageId)) {
+    throw new Error("无效的图片 ID。");
+  }
+
+  if (!(logoFileValue instanceof File) || logoFileValue.size === 0) {
+    redirect(`/admin/products/${productId}?error=missing-logo-file`);
+  }
+
+  if (!logoFileValue.type.startsWith("image/")) {
+    redirect(`/admin/products/${productId}?error=invalid-logo-file`);
+  }
+
+  const image = await prisma.productImage.findUnique({
+    where: { id: imageId },
+    include: { product: true },
+  });
+
+  if (!image || image.productId !== productId) {
+    redirect(`/admin/products/${productId}?error=image-not-found`);
+  }
+
+  const sourceUrl = image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+  const sourceFilePath = path.join(
+    process.cwd(),
+    "public",
+    sourceUrl.replace(/^\/+/, "")
+  );
+
+  try {
+    await fs.access(sourceFilePath);
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const logoExtension = logoFileValue.name.split(".").pop() || "png";
+    const logoFileName = `${image.product.slug}-${Date.now()}-logo.${logoExtension}`;
+    const logoFilePath = path.join(uploadDir, logoFileName);
+
+    const logoArrayBuffer = await logoFileValue.arrayBuffer();
+    await fs.writeFile(logoFilePath, Buffer.from(logoArrayBuffer));
+
+    const watermarkedBuffer = await createLogoWatermarkImage({
+      inputFilePath: sourceFilePath,
+      logoFilePath,
+    });
+
+    const watermarkedFileName = `${image.product.slug}-${Date.now()}-logo-watermarked.png`;
+    const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
+    const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
+
+    await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+
+    const updatedImage = await prisma.productImage.update({
+      where: { id: imageId },
+      data: {
+        watermarkedUrl: watermarkedPublicUrl,
+        watermarkType: "logo",
+        watermarkText: null,
+        watermarkAppliedAt: new Date(),
+        logoApplied: true,
+      },
+    });
+
+    await createAdminLog({
+      module: "product",
+      action: "image_logo_watermark",
+      targetId: image.product.id,
+      targetName: image.product.name,
+      note: `添加 Logo 水印：${image.product.name}`,
+      beforeData: {
+        product: getProductSnapshot(image.product),
+        image: getImageSnapshot(image),
+      },
+      afterData: {
+        product: getProductSnapshot(image.product),
+        image: getImageSnapshot(updatedImage),
+      },
+    });
+
+    revalidateProductPaths(image.product.slug, productId);
+  } catch (error) {
+    console.error("Logo 水印处理错误：", error);
+    redirect(`/admin/products/${productId}?error=logo-watermark-failed`);
+  }
+
+  redirect(`/admin/products/${productId}?success=logo-watermark-applied`);
+}
+
 export async function setProductCoverImageAction(formData: FormData) {
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
@@ -755,6 +1032,7 @@ export async function deleteProductImageAction(formData: FormData) {
 
   await deleteProductUploadFile(image.originalUrl);
   await deleteProductUploadFile(image.processedUrl);
+  await deleteProductUploadFile(image.watermarkedUrl);
 
   if (wasCover) {
     const nextImage = await prisma.productImage.findFirst({
@@ -1044,4 +1322,101 @@ function getReadableAiError(message: string) {
   }
 
   return "AI 处理失败，请更换图片或稍后重试。";
+}
+
+export async function applyLogoWatermarkToSelectedProductImagesAction(
+  formData: FormData
+) {
+  const productId = Number(formData.get("productId"));
+  const logoFileValue = formData.get("logoFile");
+
+  const imageIds = formData
+    .getAll("imageIds")
+    .map((value) => Number(value))
+    .filter((id) => id && !Number.isNaN(id));
+
+  if (!productId || Number.isNaN(productId)) {
+    throw new Error("无效的产品 ID。");
+  }
+
+  if (imageIds.length === 0) {
+    redirect(`/admin/products/${productId}?error=missing-selected-images`);
+  }
+
+  if (!(logoFileValue instanceof File) || logoFileValue.size === 0) {
+    redirect(`/admin/products/${productId}?error=missing-logo-file`);
+  }
+
+  if (!logoFileValue.type.startsWith("image/")) {
+    redirect(`/admin/products/${productId}?error=invalid-logo-file`);
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+  });
+
+  if (!product) {
+    redirect("/admin/products?error=product-not-found");
+  }
+
+  try {
+    const images = await prisma.productImage.findMany({
+      where: {
+        productId,
+        id: { in: imageIds },
+      },
+    });
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const logoExtension = logoFileValue.name.split(".").pop() || "png";
+    const logoFileName = `${product.slug}-${Date.now()}-batch-logo.${logoExtension}`;
+    const logoFilePath = path.join(uploadDir, logoFileName);
+
+    const logoArrayBuffer = await logoFileValue.arrayBuffer();
+    await fs.writeFile(logoFilePath, Buffer.from(logoArrayBuffer));
+
+    for (const image of images) {
+      const sourceUrl =
+        image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+
+      const sourceFilePath = path.join(
+        process.cwd(),
+        "public",
+        sourceUrl.replace(/^\/+/, "")
+      );
+
+      await fs.access(sourceFilePath);
+
+      const watermarkedBuffer = await createLogoWatermarkImage({
+        inputFilePath: sourceFilePath,
+        logoFilePath,
+      });
+
+      const watermarkedFileName = `${product.slug}-${Date.now()}-${image.id}-logo-watermarked.png`;
+      const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
+      const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
+
+      await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+
+      await prisma.productImage.update({
+        where: { id: image.id },
+        data: {
+          watermarkedUrl: watermarkedPublicUrl,
+          watermarkType: "logo",
+          watermarkText: null,
+          watermarkAppliedAt: new Date(),
+          logoApplied: true,
+        },
+      });
+    }
+
+    revalidateProductPaths(product.slug, productId);
+  } catch (error) {
+    console.error("批量 Logo 水印处理错误：", error);
+    redirect(`/admin/products/${productId}?error=logo-watermark-failed`);
+  }
+
+  redirect(`/admin/products/${productId}?success=logo-watermark-applied`);
 }

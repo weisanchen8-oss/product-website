@@ -1,0 +1,16 @@
+{
+  "Common": {
+    "siteName": "B2B Product Showcase System",
+    "home": "Home",
+    "products": "Products",
+    "inquiry": "Submit Inquiry",
+    "language": "Language",
+    "currency": "Currency"
+  },
+  "HomePage": {
+    "title": "Professional Product Showcase and Inquiry Platform",
+    "subtitle": "Display products for international customers, collect inquiries efficiently, and improve export business operations.",
+    "viewProducts": "View Products",
+    "submitInquiry": "Submit Inquiry"
+  }
+}

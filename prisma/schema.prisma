@@ -94,7 +94,11 @@ model PromotionProduct {
 model ProductImage {
   id                  Int       @id @default(autoincrement())
   productId           Int
-
+  watermarkedUrl      String?
+  watermarkType       String?
+  watermarkText       String?
+  watermarkAppliedAt  DateTime?
+  
   // 原图地址：用户上传后的原始产品图片
   originalUrl         String
 
