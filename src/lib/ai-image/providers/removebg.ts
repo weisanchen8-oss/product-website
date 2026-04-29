@@ -1,11 +1,7 @@
 /**
  * 文件作用：
  * 封装 remove.bg 图片去背景 API 调用。
- * 
- * 注意：
- * - API Key 只从服务端环境变量读取
- * - 不在前端暴露任何密钥
- * - 当前函数返回去背景后的 PNG Buffer
+ * API Key 只在服务端读取，不暴露到前端。
  */
 
 import fs from "node:fs/promises";
@@ -22,7 +18,15 @@ export async function removeBackgroundWithRemoveBg(inputFilePath: string) {
   const imageBuffer = await fs.readFile(inputFilePath);
 
   const formData = new FormData();
-  formData.append("image_file", new Blob([imageBuffer]), "product-image.png");
+
+  formData.append(
+    "image_file",
+    new Blob([new Uint8Array(imageBuffer)], {
+      type: "image/png",
+    }),
+    "product-image.png"
+  );
+
   formData.append("size", "auto");
   formData.append("format", "png");
 
@@ -36,10 +40,8 @@ export async function removeBackgroundWithRemoveBg(inputFilePath: string) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`remove.bg 处理失败：${response.status} ${errorText}`);
+    throw new Error(`remove.bg错误: ${response.status} ${errorText}`);
   }
 
-  const resultBuffer = Buffer.from(await response.arrayBuffer());
-
-  return resultBuffer;
+  return Buffer.from(await response.arrayBuffer());
 }

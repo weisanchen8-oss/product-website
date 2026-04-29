@@ -10,6 +10,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import {
+  fetchCurrencyToCnyRate,
+  SupportedCurrencyCode,
+} from "@/lib/exchange-rate";
 
 function calculateRiskLevel(
   currentValue: number,
@@ -129,4 +133,73 @@ export async function deleteMarketMonitorIndicator(id: string) {
   });
 
   revalidatePath("/admin/market-monitor");
+}
+
+async function upsertCurrencyIndicator(currency: SupportedCurrencyCode) {
+  const { rate, date, indicatorName } = await fetchCurrencyToCnyRate(currency);
+
+  const existingIndicator = await prisma.marketMonitorIndicator.findFirst({
+    where: {
+      type: "exchange_rate",
+      name: indicatorName,
+    },
+  });
+
+  if (!existingIndicator) {
+    await prisma.marketMonitorIndicator.create({
+      data: {
+        name: indicatorName,
+        type: "exchange_rate",
+        currentValue: rate,
+        warningThreshold: currency === "USD" ? 7.3 : currency === "EUR" ? 8.0 : 9.0,
+        dangerThreshold: currency === "USD" ? 7.4 : currency === "EUR" ? 8.2 : 9.3,
+        compareMode: "gte",
+        unit: "CNY",
+        description: `系统自动获取汇率，数据日期：${date}`,
+        isActive: true,
+        riskLevel:
+          rate >= (currency === "USD" ? 7.4 : currency === "EUR" ? 8.2 : 9.3)
+            ? "danger"
+            : rate >= (currency === "USD" ? 7.3 : currency === "EUR" ? 8.0 : 9.0)
+              ? "warning"
+              : "normal",
+      },
+    });
+
+    return;
+  }
+
+  await prisma.marketMonitorIndicator.update({
+    where: {
+      id: existingIndicator.id,
+    },
+    data: {
+      currentValue: rate,
+      description: `系统自动获取汇率，数据日期：${date}`,
+      riskLevel:
+        rate >= existingIndicator.dangerThreshold
+          ? "danger"
+          : rate >= existingIndicator.warningThreshold
+            ? "warning"
+            : "normal",
+    },
+  });
+}
+
+export async function updateUsdToCnyRateFromApi() {
+  await upsertCurrencyIndicator("USD");
+
+  revalidatePath("/admin/market-monitor");
+  revalidatePath("/admin/dashboard");
+}
+
+export async function updateAllCurrencyRatesFromApi() {
+  const currencies: SupportedCurrencyCode[] = ["USD", "EUR", "GBP"];
+
+  for (const currency of currencies) {
+    await upsertCurrencyIndicator(currency);
+  }
+
+  revalidatePath("/admin/market-monitor");
+  revalidatePath("/admin/dashboard");
 }

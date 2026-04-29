@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import {
   deleteMarketMonitorIndicator,
   toggleMarketMonitorIndicator,
+  updateAllCurrencyRatesFromApi,
 } from "./actions";
 
 function getRiskStatus(indicator: MarketMonitorIndicator) {
@@ -101,16 +102,27 @@ export default async function AdminMarketMonitorPage() {
               行业风险监控
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              手动维护汇率、国际运费、关税政策和市场风险指标，超过阈值后提醒管理员重新核对售价、运费和报价策略。
+              手动维护汇率、国际运费、关税政策和市场风险指标，超过阈值后提醒管理员重新核对售价、运费和报价策略。汇率数据支持手动点击更新，作为每日参考数据使用，不代表秒级实时行情。
             </p>
           </div>
 
-          <Link
-            href="/admin/market-monitor/new"
-            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-          >
-            新增监控指标
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <form action={updateAllCurrencyRatesFromApi}>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+              >
+                更新汇率数据（每日参考）
+              </button>
+            </form>
+
+            <Link
+              href="/admin/market-monitor/new"
+              className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            >
+              新增监控指标
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -168,7 +180,7 @@ export default async function AdminMarketMonitorPage() {
                     <th className="px-6 py-3 font-medium">高风险阈值</th>
                     <th className="px-6 py-3 font-medium">实时状态</th>
                     <th className="px-6 py-3 font-medium">启用状态</th>
-                    <th className="px-6 py-3 font-medium">更新时间</th>
+                    <th className="px-6 py-3 font-medium">数据更新时间</th>
                     <th className="px-6 py-3 font-medium">操作</th>
                   </tr>
                 </thead>
@@ -184,7 +196,7 @@ export default async function AdminMarketMonitorPage() {
                             {item.name}
                           </div>
                           {item.description ? (
-                            <div className="mt-1 max-w-xs truncate text-xs text-slate-400">
+                            <div className="mt-1 max-w-xs text-xs leading-5 text-slate-400">
                               {item.description}
                             </div>
                           ) : null}

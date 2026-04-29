@@ -1,7 +1,8 @@
 /**
  * 文件作用：
  * 定义后台产品管理相关的服务端写入动作。
- * 支持产品新增、编辑、图片管理、批量管理，并写入 AdminLog 操作日志与 beforeData / afterData 快照。
+ * 支持产品新增、编辑、图片管理、AI图片优化、批量管理，
+ * 并写入 AdminLog 操作日志与 beforeData / afterData 快照。
  */
 
 "use server";
@@ -12,6 +13,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createAdminLog } from "@/lib/admin-log";
+import { removeBackgroundWithRemoveBg } from "@/lib/ai-image/providers/removebg";
+import { createWhiteBackgroundImage } from "@/lib/ai-image/white-background";
 
 function normalizeSlug(value: string) {
   return value
@@ -241,8 +244,8 @@ async function saveUploadedProductImages(options: {
   return createdImages;
 }
 
-async function deleteProductUploadFile(imageUrl: string) {
-  if (!imageUrl.startsWith("/uploads/products/")) {
+async function deleteProductUploadFile(imageUrl: string | null) {
+  if (!imageUrl || !imageUrl.startsWith("/uploads/products/")) {
     return;
   }
 
@@ -430,6 +433,7 @@ export async function updateProductAction(formData: FormData) {
 export async function uploadProductImageAction(formData: FormData) {
   const productId = Number(formData.get("productId"));
   const fileValue = formData.get("image");
+  const autoAiProcess = formData.get("autoAiProcess") === "on";
 
   if (!productId || Number.isNaN(productId)) {
     throw new Error("无效的产品 ID。");
@@ -469,14 +473,66 @@ export async function uploadProductImageAction(formData: FormData) {
     data: {
       productId,
       originalUrl: publicUrl,
-      processedUrl: publicUrl,
-      isProcessed: true,
-      processingStatus: "success",
+      processedUrl: null,
+      isProcessed: false,
+      processingStatus: "idle",
+      processingError: null,
       logoApplied: false,
       isCover: shouldBeCover,
       sortOrder: product.images.length + 1,
     },
   });
+
+  let finalImage = image;
+
+  if (autoAiProcess) {
+    try {
+      await prisma.productImage.update({
+        where: { id: image.id },
+        data: {
+          processingStatus: "processing",
+          processingError: null,
+        },
+      });
+
+      const transparentBuffer = await removeBackgroundWithRemoveBg(filePath);
+      const processedBuffer = await createWhiteBackgroundImage(transparentBuffer);
+
+      const processedFileName = `${product.slug}-${Date.now()}-processed.png`;
+      const processedFilePath = path.join(uploadDir, processedFileName);
+      const processedPublicUrl = `/uploads/products/${processedFileName}`;
+
+      await fs.writeFile(processedFilePath, processedBuffer);
+
+      finalImage = await prisma.productImage.update({
+        where: { id: image.id },
+        data: {
+          processedUrl: processedPublicUrl,
+          isProcessed: true,
+          processingStatus: "success",
+          processingError: null,
+          aiProvider: "removebg",
+          processedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      console.error("上传后自动 AI 处理错误：", error);
+
+      const rawMessage =
+        error instanceof Error ? error.message : "AI 图片处理失败。";
+
+      const message = getReadableAiError(rawMessage);
+
+      finalImage = await prisma.productImage.update({
+        where: { id: image.id },
+        data: {
+          isProcessed: false,
+          processingStatus: "failed",
+          processingError: message,
+        },
+      });
+    }
+  }
 
   await createAdminLog({
     module: "product",
@@ -490,7 +546,7 @@ export async function uploadProductImageAction(formData: FormData) {
     },
     afterData: {
       product: getProductSnapshot(product),
-      image: getImageSnapshot(image),
+      image: getImageSnapshot(finalImage),
     },
   });
 
@@ -499,7 +555,7 @@ export async function uploadProductImageAction(formData: FormData) {
   redirect(`/admin/products/${productId}?success=image-uploaded`);
 }
 
-export async function simulateAiProcessProductImageAction(formData: FormData) {
+export async function processProductImageWithAiAction(formData: FormData) {
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
 
@@ -524,35 +580,83 @@ export async function simulateAiProcessProductImageAction(formData: FormData) {
 
   const oldImageSnapshot = getImageSnapshot(image);
 
-  const updatedImage = await prisma.productImage.update({
-    where: { id: imageId },
-    data: {
-      processedUrl: image.originalUrl,
-      isProcessed: true,
-      processingStatus: "success",
-      processingError: null,
-      aiProvider: "mock",
-      processedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.productImage.update({
+      where: { id: imageId },
+      data: {
+        processingStatus: "processing",
+        processingError: null,
+      },
+    });
 
-  await createAdminLog({
-    module: "product",
-    action: "ai_image_process_mock",
-    targetId: image.product.id,
-    targetName: image.product.name,
-    note: `模拟 AI 优化产品图片：${image.product.name}`,
-    beforeData: {
-      product: getProductSnapshot(image.product),
-      image: oldImageSnapshot,
-    },
-    afterData: {
-      product: getProductSnapshot(image.product),
-      image: getImageSnapshot(updatedImage),
-    },
-  });
+    const originalFilePath = path.join(
+      process.cwd(),
+      "public",
+      image.originalUrl
+    );
 
-  revalidateProductPaths(image.product.slug, productId);
+    const transparentBuffer = await removeBackgroundWithRemoveBg(originalFilePath);
+    const processedBuffer = await createWhiteBackgroundImage(transparentBuffer);
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const processedFileName = `${image.product.slug}-${Date.now()}-processed.png`;
+    const processedFilePath = path.join(uploadDir, processedFileName);
+    const processedPublicUrl = `/uploads/products/${processedFileName}`;
+
+    await fs.writeFile(processedFilePath, processedBuffer);
+
+    const updatedImage = await prisma.productImage.update({
+      where: { id: imageId },
+      data: {
+        processedUrl: processedPublicUrl,
+        isProcessed: true,
+        processingStatus: "success",
+        processingError: null,
+        aiProvider: "removebg",
+        processedAt: new Date(),
+      },
+    });
+
+    await createAdminLog({
+      module: "product",
+      action: "ai_image_process",
+      targetId: image.product.id,
+      targetName: image.product.name,
+      note: `AI 优化产品图片：${image.product.name}`,
+      beforeData: {
+        product: getProductSnapshot(image.product),
+        image: oldImageSnapshot,
+      },
+      afterData: {
+        product: getProductSnapshot(image.product),
+        image: getImageSnapshot(updatedImage),
+      },
+    });
+
+    revalidateProductPaths(image.product.slug, productId);
+  } catch (error) {
+    console.error("AI处理错误：", error);
+
+    const rawMessage =
+      error instanceof Error ? error.message : "AI 图片处理失败。";
+
+    const message = getReadableAiError(rawMessage);
+
+    await prisma.productImage.update({
+      where: { id: imageId },
+      data: {
+        isProcessed: false,
+        processingStatus: "failed",
+        processingError: message,
+      },
+    });
+
+    revalidateProductPaths(image.product.slug, productId);
+
+    redirect(`/admin/products/${productId}?error=ai-image-failed`);
+  }
 
   redirect(`/admin/products/${productId}?success=ai-image-processed`);
 }
@@ -643,14 +747,14 @@ export async function deleteProductImageAction(formData: FormData) {
   }
 
   const wasCover = image.isCover;
-  const imageUrl = image.originalUrl;
   const beforeImageSnapshot = getImageSnapshot(image);
 
   await prisma.productImage.delete({
     where: { id: imageId },
   });
 
-  await deleteProductUploadFile(imageUrl);
+  await deleteProductUploadFile(image.originalUrl);
+  await deleteProductUploadFile(image.processedUrl);
 
   if (wasCover) {
     const nextImage = await prisma.productImage.findFirst({
@@ -792,7 +896,10 @@ export async function bulkManageProductsAction(formData: FormData) {
 
   if (bulkAction === "delete") {
     const imageUrls = products.flatMap((product) =>
-      product.images.map((image) => image.originalUrl)
+      product.images.flatMap((image) => [
+        image.originalUrl,
+        image.processedUrl,
+      ])
     );
 
     await prisma.productImage.deleteMany({
@@ -911,4 +1018,30 @@ export async function bulkManageProductsAction(formData: FormData) {
   revalidateProductPaths();
 
   redirect(appendSuccessParam(redirectTo, "bulk-updated"));
+}
+
+function getReadableAiError(message: string) {
+  if (!message) return "AI 处理失败，请稍后重试。";
+
+  if (message.includes("unknown_foreground")) {
+    return "图片主体不清晰，AI 无法识别。建议使用背景简单、主体明显的产品图片。";
+  }
+
+  if (message.includes("missing_source")) {
+    return "图片读取失败，请重新上传图片后再试。";
+  }
+
+  if (message.includes("402") || message.includes("payment_required")) {
+    return "AI 服务额度已用完，请联系管理员处理。";
+  }
+
+  if (message.includes("401") || message.includes("Invalid API key")) {
+    return "AI 服务配置异常，请联系管理员检查 API Key。";
+  }
+
+  if (message.includes("network") || message.includes("fetch")) {
+    return "网络异常，AI 处理失败，请稍后再试。";
+  }
+
+  return "AI 处理失败，请更换图片或稍后重试。";
 }

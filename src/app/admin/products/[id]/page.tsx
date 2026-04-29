@@ -1,10 +1,11 @@
 /**
  * 文件作用：
  * 定义后台产品编辑页。
- * 当前阶段支持编辑真实产品数据，并同步成功/失败弹窗反馈。
+ * 支持编辑产品基础信息、上传产品图片、AI图片优化、设置封面图、删除图片。
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { AdminActionToast } from "@/components/admin/admin-action-toast";
@@ -14,11 +15,11 @@ import {
   uploadProductImageAction,
   setProductCoverImageAction,
   deleteProductImageAction,
-  simulateAiProcessProductImageAction,
+  processProductImageWithAiAction,
 } from "@/app/admin/products/actions";
 import { ProductSpecsEditor } from "@/components/admin/product-specs-editor";
-import Image from "next/image";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
+import { SubmitButton } from "@/components/admin/submit-button";
 
 type AdminProductEditPageProps = {
   params: Promise<{
@@ -40,14 +41,14 @@ function getErrorMessage(error?: string) {
       return "保存失败：请填写产品简介。";
     case "missing-price":
       return "保存失败：请填写价格信息。";
-    case "invalid-specs-json":
-      return "保存失败：产品参数 JSON 格式不正确。";
     case "update-failed":
       return "保存失败：请检查 slug 是否重复或数据是否有效。";
     case "missing-image":
       return "上传失败：请选择图片文件。";
     case "invalid-image-type":
       return "上传失败：请上传图片格式文件。";
+    case "ai-image-failed":
+      return "AI 图片优化失败：请检查 API Key、图片格式或 remove.bg 额度。";
     default:
       return "";
   }
@@ -150,7 +151,7 @@ export default async function AdminProductEditPage({
       ) : null}
 
       {success === "ai-image-processed" ? (
-        <AdminActionToast message="AI 图片优化处理成功。" />
+        <AdminActionToast message="AI 图片优化完成。" />
       ) : null}
 
       {errorMessage ? <AdminActionToast message={errorMessage} /> : null}
@@ -315,89 +316,108 @@ export default async function AdminProductEditPage({
       <div className="admin-form-card admin-image-card">
         <h2>产品图片</h2>
         <p className="admin-section-help">
-           当前为基础图片上传版本。后续会在这里接入 AI 抠图、白底处理和 Logo 叠加。
-         </p>
-          
-         <form action={uploadProductImageAction} className="admin-upload-form">
-           <input type="hidden" name="productId" value={product.id} />
-          
+          当前支持基础图片上传与 AI 抠图白底优化。建议上传主体清晰、背景简单的真实产品图。
+        </p>
+
+        <form action={uploadProductImageAction} className="admin-upload-form">
+          <input type="hidden" name="productId" value={product.id} />
+
           <label className="form-field">
             <span>上传产品图片</span>
-              <input type="file" name="image" accept="image/*" />
+            <input type="file" name="image" accept="image/*" />
+            <small className="form-help-text">
+              建议上传主体清晰、背景简单的真实产品图，AI 优化成功率更高。
+            </small>
           </label>
-          
+
+          <label className="admin-checkbox-field">
+            <input type="checkbox" name="autoAiProcess" />
+            <span>上传后自动进行 AI 抠图白底优化</span>
+          </label>
+
           <button type="submit" className="primary-button">
             上传图片
           </button>
         </form>
-          
+
         <div className="admin-image-list">
           {product.images.length > 0 ? (
-            product.images.map((image) => (
-              <div key={image.id} className="admin-image-item">
-                <Image
-                  src={image.processedUrl ?? image.originalUrl}
-                  alt={product.name}
-                  width={120}
-                  height={90}
-                  className="admin-image-preview"
-                />
+            product.images.map((image) => {
+              const statusInfo = getImageProcessingStatus(image.processingStatus);
+              const displayUrl = image.processedUrl ?? image.originalUrl;
 
-                <div className="admin-image-info">
-                  <strong>{image.isCover ? "当前封面图" : "产品图片"}</strong>
-                  {(() => {
-                    const statusInfo = getImageProcessingStatus(image.processingStatus);
+              return (
+                <div key={image.id} className="admin-image-item">
+                  <Image
+                    src={displayUrl}
+                    alt={product.name}
+                    width={120}
+                    height={90}
+                    className="admin-image-preview"
+                  />
 
-                    return (
-                      <p>
-                        AI处理状态：
-                        <span className={statusInfo.className}>{statusInfo.text}</span>
+                  <div className="admin-image-info">
+                    <strong>{image.isCover ? "当前封面图" : "产品图片"}</strong>
+
+                    <p>
+                      AI处理状态：
+                      <span className={statusInfo.className}>
+                        {statusInfo.text}
+                      </span>
+                    </p>
+
+                    <p>图片地址：{displayUrl}</p>
+
+                    {image.processingStatus === "failed" &&
+                    image.processingError ? (
+                      <p className="admin-error-text">
+                        失败原因：{image.processingError}
                       </p>
-                    );
-                  })()}
-                  <p>图片地址：{image.processedUrl ?? image.originalUrl}</p>
-                </div>
+                    ) : null}
+                  </div>
 
-                <div className="admin-image-actions">
-                  <form action={simulateAiProcessProductImageAction}>
-                    <input type="hidden" name="productId" value={product.id} />
-                    <input type="hidden" name="imageId" value={image.id} />
-                    <button type="submit" className="ghost-button">
-                      {image.isProcessed ? "重新AI优化" : "AI优化图片"}
-                    </button>
-                  </form>
-                  {image.isCover ? (
-                    <span className="admin-cover-badge">已设为封面</span>
-                  ) : (
-                    <form action={setProductCoverImageAction}>
+                  <div className="admin-image-actions">
+                    <form action={processProductImageWithAiAction}>
                       <input type="hidden" name="productId" value={product.id} />
                       <input type="hidden" name="imageId" value={image.id} />
-                      <button type="submit" className="ghost-button">
-                        设为封面图
-                      </button>
+                      <SubmitButton className="ghost-button">
+                        {image.isProcessed ? "重新AI优化" : "AI优化图片"}
+                      </SubmitButton>
                     </form>
-                  )}
 
-                  <form action={deleteProductImageAction}>
-                    <input type="hidden" name="productId" value={product.id} />
-                    <input type="hidden" name="imageId" value={image.id} />
-                    <ConfirmSubmitButton
-                      className="danger-button"
-                      message="确定要删除这张产品图片吗？删除后不可恢复。"
-                    >
-                      删除图片
-                    </ConfirmSubmitButton>
-                  </form>
+                    {image.isCover ? (
+                      <span className="admin-cover-badge">已设为封面</span>
+                    ) : (
+                      <form action={setProductCoverImageAction}>
+                        <input type="hidden" name="productId" value={product.id} />
+                        <input type="hidden" name="imageId" value={image.id} />
+                        <button type="submit" className="ghost-button">
+                          设为封面图
+                        </button>
+                      </form>
+                    )}
+
+                    <form action={deleteProductImageAction}>
+                      <input type="hidden" name="productId" value={product.id} />
+                      <input type="hidden" name="imageId" value={image.id} />
+                      <ConfirmSubmitButton
+                        className="danger-button"
+                        message="确定要删除这张产品图片吗？删除后不可恢复。"
+                      >
+                        删除图片
+                      </ConfirmSubmitButton>
+                    </form>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <p className="admin-section-help">当前产品还没有上传图片。第一张上传图片会自动成为封面图。</p>
+            <p className="admin-section-help">
+              当前产品还没有上传图片。第一张上传图片会自动成为封面图。
+            </p>
           )}
         </div>
       </div>
-        
     </AdminLayout>
   );
 }
-

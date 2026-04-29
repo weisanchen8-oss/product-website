@@ -10,6 +10,7 @@ import { AdminLayout } from "@/components/admin/admin-layout";
 import { prisma } from "@/lib/prisma";
 import { getAdminAnalyticsData } from "@/lib/admin-analytics";
 import { getMarketRiskAlerts } from "@/lib/market-monitor";
+import { getExchangeRateAffectedProducts } from "@/lib/risk-linking";
 
 function getInquiryStatusText(status: string) {
   switch (status) {
@@ -36,6 +37,7 @@ export default async function AdminDashboardPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const marketRiskAlerts = await getMarketRiskAlerts();
+  const exchangeRateAffectedProducts = await getExchangeRateAffectedProducts();
 
   const lowSalesPage = Math.max(
     1,
@@ -206,6 +208,46 @@ export default async function AdminDashboardPage({
                   className="insight-action-link"
                 >
                   去处理
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="admin-panel">
+        <div className="admin-panel-header">
+          <div>
+            <h2>受汇率影响产品</h2>
+            <p>
+              当汇率指标进入预警或高风险状态时，系统会自动提示需要重新核对报价的在售产品。
+            </p>
+          </div>
+      
+          <Link href="/admin/products" className="insight-action-link">
+            去产品管理 →
+          </Link>
+        </div>
+      
+        {exchangeRateAffectedProducts.length === 0 ? (
+          <p className="admin-empty-text">
+            当前暂无需要因汇率波动而优先核对报价的产品。
+          </p>
+        ) : (
+          <div className="admin-list">
+            {exchangeRateAffectedProducts.map((product) => (
+              <div key={product.id} className="admin-list-item insight-item insight-medium">
+                <div>
+                  <strong>{product.name}</strong>
+                  <p>当前价格：{product.priceText || "未填写价格"}</p>
+                  <p>{product.reason}</p>
+                </div>
+      
+                <Link
+                  href={`/admin/products/${product.id}/edit`}
+                  className="insight-action-link"
+                >
+                  核对报价
                 </Link>
               </div>
             ))}

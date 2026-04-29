@@ -873,3 +873,10 @@
     justify-items: start;
   }
 }
+
+.admin-error-text {
+  margin-top: 6px;
+  color: #b91c1c;
+  font-size: 13px;
+  line-height: 1.6;
+}
