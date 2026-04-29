@@ -1,0 +1,139 @@
+/**
+ * 文件作用：
+ * 后台整体布局样式。
+ * 包括后台侧边栏、主内容区、后台访问限制页等基础结构。
+ */
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.admin-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  background: #f8fafc;
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 28px 22px;
+  background: #111827;
+  color: #fff;
+  overflow-y: auto;
+}
+
+.admin-logo {
+  display: block;
+  margin-bottom: 28px;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.admin-nav {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-nav a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #e5e7eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.admin-nav a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.admin-user-box {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.admin-user-box p {
+  margin: 0 0 8px;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.admin-user-box strong {
+  color: #fff;
+}
+
+.admin-main {
+  min-width: 0;
+  padding: 36px;
+}
+
+.admin-page {
+  min-height: 100vh;
+  padding: 32px;
+  background: #f6f8fb;
+  color: #0f172a;
+}
+
+.admin-access-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f8fafc;
+}
+
+.admin-access-card {
+  width: min(560px, 100%);
+  padding: 36px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+.admin-access-card h1 {
+  margin: 0 0 14px;
+}
+
+.admin-access-card p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.8;
+}
+
+.admin-access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .admin-shell,
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .admin-main {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-page {
+    padding: 20px;
+  }
+}

@@ -5,6 +5,17 @@
 
 import type { Metadata } from "next";
 import "./globals.css";
+import "./styles/public-layout.css";
+import "./styles/public-products.css";
+import "./styles/admin-layout.css";
+import "./styles/admin-common.css";
+import "./styles/admin-dashboard.css";
+import "./styles/admin-products.css";
+import "./styles/admin-inquiries.css";
+import "./styles/admin-customers.css";
+import "./styles/admin-logs.css";
+import "./styles/admin-promotions.css";
+import "./styles/admin-analytics.css";
 
 export const metadata: Metadata = {
   title: "B2B 产品展示与询单平台",

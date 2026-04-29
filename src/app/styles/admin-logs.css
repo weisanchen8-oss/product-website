@@ -1,0 +1,383 @@
+/**
+ * 文件作用：
+ * 后台操作日志、日志详情、变更记录、回滚和回滚链相关样式。
+ */
+
+.admin-log-toolbar {
+  margin-bottom: 16px;
+  padding: 24px 28px;
+  border-radius: 24px;
+  background: #ffffff;
+}
+
+.admin-log-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 56px;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-log-search-form input[type="search"] {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.admin-log-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.admin-log-table-card {
+  padding: 32px 28px;
+  border-radius: 24px;
+  background: #ffffff;
+}
+
+.admin-log-table-header {
+  margin-bottom: 22px;
+}
+
+.admin-log-table-header h2 {
+  margin: 0;
+  color: #020617;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.admin-log-table-header p {
+  margin-top: 10px;
+  color: #64748b;
+}
+
+.admin-log-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-log-table {
+  width: 100%;
+  min-width: 980px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.admin-log-table th,
+.admin-log-table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+  color: #111827;
+  font-size: 14px;
+}
+
+.admin-log-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.admin-log-module {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-log-product {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-log-category {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.admin-log-inquiry {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.admin-log-customer {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.admin-log-system {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.admin-log-target-link {
+  color: #111827;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-log-target-link:hover {
+  text-decoration: underline;
+}
+
+.admin-log-change-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-log-change-link:hover {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.admin-log-no-change {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.admin-log-detail-card {
+  padding: 28px;
+  margin-bottom: 18px;
+  border-radius: 24px;
+  background: #ffffff;
+}
+
+.admin-log-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-log-detail-summary > div {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.admin-log-detail-summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-log-detail-summary strong {
+  display: block;
+  color: #020617;
+  font-size: 15px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.admin-log-detail-summary-full {
+  grid-column: 1 / -1;
+}
+
+.admin-log-detail-table-header {
+  margin-bottom: 18px;
+}
+
+.admin-log-detail-table-header h2 {
+  margin: 0;
+  color: #020617;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.admin-log-detail-table-header p {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.admin-log-detail-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-log-detail-table {
+  width: 100%;
+  min-width: 860px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.admin-log-detail-table th,
+.admin-log-detail-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.admin-log-detail-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.admin-log-row-changed {
+  background: #fffbeb;
+}
+
+.admin-log-row-changed td:last-child {
+  color: #b45309;
+  font-weight: 800;
+}
+
+.admin-rollback-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #fecaca;
+  background: #fffafa;
+}
+
+.admin-rollback-card h2 {
+  margin: 0;
+  color: #991b1b;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.admin-rollback-card p {
+  margin-top: 8px;
+  color: #b45309;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.admin-rollback-button {
+  min-height: 42px;
+  padding: 0 18px;
+  white-space: nowrap;
+}
+
+.admin-rollback-disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-rollback-warning {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #fff7e6;
+  color: #d46b08;
+}
+
+.admin-rollback-chain-card {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.admin-rollback-chain-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-rollback-chain-item {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.admin-rollback-chain-item.warning {
+  background: #fffbeb;
+}
+
+.admin-rollback-chain-item span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-rollback-chain-item strong {
+  display: block;
+  color: #020617;
+  font-size: 15px;
+}
+
+.admin-rollback-chain-item p {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-rollback-chain-item a {
+  color: #1d4ed8;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.admin-rollback-chain-item a:hover {
+  text-decoration: underline;
+}
+
+.admin-rollback-chain-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .admin-log-search-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-log-table {
+    min-width: 920px;
+  }
+
+  .admin-log-detail-header {
+    flex-direction: column;
+  }
+
+  .admin-log-detail-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-rollback-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
