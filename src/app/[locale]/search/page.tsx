@@ -14,6 +14,7 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { searchProducts } from "@/lib/product-data";
 import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
+import { getLocalizedText } from "@/lib/localized-content";
 
 type LocaleSearchPageProps = {
   params: Promise<{ locale: string }>;
@@ -73,6 +74,24 @@ export default async function LocaleSearchPage({
                     product.images.find((image) => image.isCover) ??
                     product.images[0];
 
+                  const productName = getLocalizedText(
+                    locale,
+                    product.name,
+                    product.nameEn
+                  );
+
+                  const productDesc = getLocalizedText(
+                    locale,
+                    product.shortDesc,
+                    product.shortDescEn
+                  );
+
+                  const categoryName = getLocalizedText(
+                    locale,
+                    product.category.name,
+                    product.category.nameEn
+                  );
+
                   return (
                     <article key={product.id} className="product-list-card">
                       <Link
@@ -82,7 +101,7 @@ export default async function LocaleSearchPage({
                         {coverImage ? (
                           <Image
                             src={coverImage.processedUrl ?? coverImage.originalUrl}
-                            alt={product.name}
+                            alt={productName}
                             width={360}
                             height={260}
                             className="product-list-image"
@@ -100,15 +119,15 @@ export default async function LocaleSearchPage({
                             href={getFrontendPath(locale, `/product/${product.slug}`)}
                             className="text-link"
                           >
-                            {product.name}
+                            {productName}
                           </Link>
                         </h3>
 
-                        <p>{product.shortDesc}</p>
+                        <p>{productDesc}</p>
 
                         <div className="product-meta">
                           {isEn ? "Category: " : "分类："}
-                          {product.category.name}
+                          {categoryName}
                         </div>
 
                         <div className="product-card-footer">

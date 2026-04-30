@@ -2,7 +2,7 @@
  * 文件作用：
  * 前台多语言产品中心页。
  * 当前支持 /zh/products 和 /en/products。
- * 本阶段先翻译页面固定文案，产品数据库内容后续再接入中英文字段。
+ * 英文页面优先显示产品/分类英文字段，未填写时自动回退中文。
  */
 
 import Image from "next/image";
@@ -13,10 +13,8 @@ import { PageHero } from "@/components/common/page-hero";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getProductsPageData } from "@/lib/product-data";
-import {
-  getFrontendPath,
-  isFrontendLocale,
-} from "@/lib/frontend-i18n";
+import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
+import { getLocalizedText } from "@/lib/localized-content";
 
 function getPromotionDiscountScore(promotion: {
   discountType: string;
@@ -97,8 +95,11 @@ export default async function LocaleProductsPage({
               </Link>
 
               {categories.map((category) => (
-                <Link key={category.id} href={getFrontendPath(locale, "/products")}>
-                  {category.name}
+                <Link
+                  key={category.id}
+                  href={getFrontendPath(locale, "/products")}
+                >
+                  {getLocalizedText(locale, category.name, category.nameEn)}
                 </Link>
               ))}
             </div>
@@ -123,10 +124,29 @@ export default async function LocaleProductsPage({
                     product.promotionProducts
                   );
 
+                  const productName = getLocalizedText(
+                    locale,
+                    product.name,
+                    product.nameEn
+                  );
+                  const productDesc = getLocalizedText(
+                    locale,
+                    product.shortDesc,
+                    product.shortDescEn
+                  );
+                  const categoryName = getLocalizedText(
+                    locale,
+                    product.category.name,
+                    product.category.nameEn
+                  );
+
                   return (
                     <article key={product.id} className="product-list-card">
                       <Link
-                        href={getFrontendPath(locale, `/product/${product.slug}`)}
+                        href={getFrontendPath(
+                          locale,
+                          `/product/${product.slug}`
+                        )}
                         className="product-list-image-wrap"
                       >
                         {bestPromotion ? (
@@ -137,8 +157,11 @@ export default async function LocaleProductsPage({
 
                         {coverImage ? (
                           <Image
-                            src={coverImage.processedUrl ?? coverImage.originalUrl}
-                            alt={product.name}
+                            src={
+                              coverImage.processedUrl ??
+                              coverImage.originalUrl
+                            }
+                            alt={productName}
                             width={360}
                             height={260}
                             className="product-list-image"
@@ -153,25 +176,31 @@ export default async function LocaleProductsPage({
                       <div className="product-list-body">
                         <h3>
                           <Link
-                            href={getFrontendPath(locale, `/product/${product.slug}`)}
+                            href={getFrontendPath(
+                              locale,
+                              `/product/${product.slug}`
+                            )}
                             className="text-link"
                           >
-                            {product.name}
+                            {productName}
                           </Link>
                         </h3>
 
-                        <p>{product.shortDesc}</p>
+                        <p>{productDesc}</p>
 
                         <div className="product-meta">
                           {isEn ? "Category: " : "分类："}
-                          {product.category.name}
+                          {categoryName}
                         </div>
 
                         <div className="product-card-footer">
                           <span>{product.priceText}</span>
 
                           <Link
-                            href={getFrontendPath(locale, `/product/${product.slug}`)}
+                            href={getFrontendPath(
+                              locale,
+                              `/product/${product.slug}`
+                            )}
                             className="ghost-button inline-button-link"
                           >
                             {isEn ? "View Details" : "查看详情"}

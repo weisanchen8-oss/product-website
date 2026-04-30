@@ -76,6 +76,18 @@ export default async function AdminCategoryNewPage({
           </label>
 
           <label className="form-field">
+            <span>英文分类名称（可选）</span>
+            <input
+              type="text"
+              name="nameEn"
+              placeholder="例如：Pumps"
+            />
+            <small className="form-help-text">
+              用于英文前台展示；不填写时英文页面会显示中文分类名。
+            </small>
+          </label>
+
+          <label className="form-field">
             <span>Slug（可选）</span>
             <input type="text" name="slug" placeholder="可不填，系统会自动生成" />
             <small className="form-help-text">
@@ -90,6 +102,16 @@ export default async function AdminCategoryNewPage({
               placeholder="请输入分类说明，也可以暂时不填"
               className="admin-textarea"
               rows={5}
+            />
+          </label>
+
+          <label className="form-field">
+            <span>英文分类说明（可选）</span>
+            <textarea
+              name="descriptionEn"
+              className="admin-textarea"
+              rows={4}
+              placeholder="用于英文前台展示"
             />
           </label>
 

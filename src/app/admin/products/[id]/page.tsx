@@ -224,6 +224,19 @@ export default async function AdminProductEditPage({
           </label>
 
           <label className="form-field">
+            <span>英文产品名称（可选）</span>
+            <input
+              type="text"
+              name="nameEn"
+              defaultValue={product.nameEn ?? ""}
+              placeholder="例如：Industrial Water Pump"
+            />
+            <small className="form-help-text">
+              用于英文前台页面展示；不填写时英文页面会显示中文名称。
+            </small>
+          </label>
+
+          <label className="form-field">
             <span>Slug（高级选项）</span>
             <input type="text" name="slug" defaultValue={product.slug} />
             <small className="form-help-text">
@@ -257,10 +270,30 @@ export default async function AdminProductEditPage({
           </label>
 
           <label className="form-field">
+            <span>英文产品简介（可选）</span>
+            <textarea
+              name="shortDescEn"
+              defaultValue={product.shortDescEn ?? ""}
+              className="admin-textarea"
+              rows={4}
+            />
+          </label>
+
+          <label className="form-field">
             <span>详细介绍</span>
             <textarea
               name="fullDesc"
               defaultValue={product.fullDesc ?? ""}
+              className="admin-textarea"
+              rows={6}
+            />
+          </label>
+
+          <label className="form-field">
+            <span>英文详细介绍（可选）</span>
+            <textarea
+              name="fullDescEn"
+              defaultValue={product.fullDescEn ?? ""}
               className="admin-textarea"
               rows={6}
             />

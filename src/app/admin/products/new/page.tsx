@@ -66,13 +66,24 @@ export default async function AdminProductNewPage({
         <form
           action={createProductAction}
           className="stack-form"
-          encType="multipart/form-data"
         >
           <label className="form-field">
             <span>产品名称 *</span>
             <input type="text" name="name" placeholder="例如：工业设备基础款 A" />
             <small className="form-help-text">
               必填。产品名称会展示在前台产品列表和详情页中。
+            </small>
+          </label>
+
+          <label className="form-field">
+            <span>英文产品名称（可选）</span>
+            <input
+              type="text"
+              name="nameEn"
+              placeholder="例如：Industrial Water Pump"
+            />
+            <small className="form-help-text">
+              用于英文前台页面展示；不填写时英文页面会显示中文名称。
             </small>
           </label>
 
@@ -107,10 +118,30 @@ export default async function AdminProductNewPage({
           </label>
 
           <label className="form-field">
+            <span>英文产品简介（可选）</span>
+            <textarea
+              name="shortDescEn"
+              placeholder="用于英文产品列表和详情页简介"
+              className="admin-textarea"
+              rows={4}
+            />
+          </label>
+
+          <label className="form-field">
             <span>详细介绍（可选）</span>
             <textarea
               name="fullDesc"
               placeholder="用于产品详情页图文详情区域"
+              className="admin-textarea"
+              rows={6}
+            />
+          </label>
+
+          <label className="form-field">
+            <span>英文详细介绍（可选）</span>
+            <textarea
+              name="fullDescEn"
+              placeholder="用于英文产品详情页图文详情区域"
               className="admin-textarea"
               rows={6}
             />

@@ -425,3 +425,134 @@ textarea:focus {
     gap: 16px;
   }
 }
+
+/*
+ * 文件作用：
+ * 修复前台产品中心页多语言版本布局。
+ * 统一分类筛选、产品卡片、图片、价格和按钮区域样式。
+ */
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.category-filter a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.category-filter a:hover {
+  background: #f3f4f6;
+}
+
+.product-list-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.product-list-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.product-list-image-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.product-list-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-list-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+
+.product-list-body h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.product-list-body p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.7;
+}
+
+.product-meta {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.product-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.product-card-footer span {
+  font-weight: 800;
+  color: #111827;
+}
+
+.promotion-corner-badge {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 2;
+  border-radius: 999px;
+  background: #f97316;
+  color: #ffffff;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .product-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .product-list-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -2,7 +2,7 @@
  * 文件作用：
  * 前台多语言产品详情页。
  * 当前支持 /zh/product/[slug] 和 /en/product/[slug]。
- * 本阶段先翻译固定 UI 文案，产品数据库内容后续再接入中英文字段。
+ * 英文页面优先显示产品/分类英文字段，未填写时自动回退中文。
  */
 
 import Link from "next/link";
@@ -14,6 +14,7 @@ import { ProductGallery } from "@/components/product/product-gallery";
 import { AddToInquiryButton } from "@/components/inquiry/add-to-inquiry-button";
 import { getProductDetailBySlug } from "@/lib/product-data";
 import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
+import { getLocalizedText } from "@/lib/localized-content";
 
 type ProductDetailPageProps = {
   params: Promise<{
@@ -110,13 +111,31 @@ export default async function LocaleProductDetailPage({
   }
 
   const { product, relatedProducts } = data;
+
+  const productName = getLocalizedText(locale, product.name, product.nameEn);
+  const productShortDesc = getLocalizedText(
+    locale,
+    product.shortDesc,
+    product.shortDescEn
+  );
+  const productFullDesc = getLocalizedText(
+    locale,
+    product.fullDesc,
+    product.fullDescEn
+  );
+  const categoryName = getLocalizedText(
+    locale,
+    product.category.name,
+    product.category.nameEn
+  );
+
   const specs = parseSpecs(product.specsJson);
   const bestPromotion = getBestActivePromotion(product.promotionProducts);
 
   const galleryImages = product.images.map((image) => ({
     id: image.id,
     url: image.processedUrl ?? image.originalUrl,
-    alt: product.name,
+    alt: productName,
   }));
 
   return (
@@ -126,12 +145,10 @@ export default async function LocaleProductDetailPage({
       <main>
         <PageHero
           eyebrow={
-            isEn
-              ? `Category: ${product.category.name}`
-              : `产品分类：${product.category.name}`
+            isEn ? `Category: ${categoryName}` : `产品分类：${categoryName}`
           }
-          title={product.name}
-          description={product.shortDesc}
+          title={productName}
+          description={productShortDesc}
         />
 
         <section className="section">
@@ -181,7 +198,7 @@ export default async function LocaleProductDetailPage({
 
               <AddToInquiryButton
                 productId={product.id}
-                productName={product.name}
+                productName={productName}
                 productSlug={product.slug}
                 priceText={product.priceText}
               />
@@ -223,7 +240,7 @@ export default async function LocaleProductDetailPage({
               <h2>{isEn ? "Product Details" : "图文详情"}</h2>
 
               <p>
-                {product.fullDesc ??
+                {productFullDesc ||
                   (isEn
                     ? "Detailed product introduction has not been added yet."
                     : "当前产品尚未补充详细介绍内容。")}
@@ -253,48 +270,61 @@ export default async function LocaleProductDetailPage({
             </div>
 
             <div className="card-grid">
-              {relatedProducts.map((item) => (
-                <article key={item.id} className="product-card">
-                  <Link
-                    href={getFrontendPath(locale, `/product/${item.slug}`)}
-                    className="product-image-link product-link-block"
-                  >
-                    <div className="product-image-placeholder">
-                      {item.images[0]?.processedUrl
-                        ? isEn
-                          ? "Image"
-                          : "展示图"
-                        : isEn
-                          ? "Product Image"
-                          : "产品图"}
+              {relatedProducts.map((item) => {
+                const relatedName = getLocalizedText(
+                  locale,
+                  item.name,
+                  item.nameEn
+                );
+                const relatedDesc = getLocalizedText(
+                  locale,
+                  item.shortDesc,
+                  item.shortDescEn
+                );
+
+                return (
+                  <article key={item.id} className="product-card">
+                    <Link
+                      href={getFrontendPath(locale, `/product/${item.slug}`)}
+                      className="product-image-link product-link-block"
+                    >
+                      <div className="product-image-placeholder">
+                        {item.images[0]?.processedUrl
+                          ? isEn
+                            ? "Image"
+                            : "展示图"
+                          : isEn
+                            ? "Product Image"
+                            : "产品图"}
+                      </div>
+                    </Link>
+
+                    <div className="product-card-body">
+                      <h3>
+                        <Link
+                          href={getFrontendPath(locale, `/product/${item.slug}`)}
+                          className="text-link"
+                        >
+                          {relatedName}
+                        </Link>
+                      </h3>
+
+                      <p>{relatedDesc}</p>
+
+                      <div className="product-card-footer">
+                        <span>{item.priceText}</span>
+
+                        <Link
+                          href={getFrontendPath(locale, `/product/${item.slug}`)}
+                          className="ghost-button inline-button-link"
+                        >
+                          {isEn ? "View Details" : "查看详情"}
+                        </Link>
+                      </div>
                     </div>
-                  </Link>
-
-                  <div className="product-card-body">
-                    <h3>
-                      <Link
-                        href={getFrontendPath(locale, `/product/${item.slug}`)}
-                        className="text-link"
-                      >
-                        {item.name}
-                      </Link>
-                    </h3>
-
-                    <p>{item.shortDesc}</p>
-
-                    <div className="product-card-footer">
-                      <span>{item.priceText}</span>
-
-                      <Link
-                        href={getFrontendPath(locale, `/product/${item.slug}`)}
-                        className="ghost-button inline-button-link"
-                      >
-                        {isEn ? "View Details" : "查看详情"}
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>

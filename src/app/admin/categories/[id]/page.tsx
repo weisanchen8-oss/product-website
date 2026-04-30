@@ -101,6 +101,16 @@ export default async function AdminCategoryEditPage({
             </small>
           </label>
 
+          <label className="form-field">
+            <span>英文分类名称（可选）</span>
+            <input
+              type="text"
+              name="nameEn"
+              defaultValue={category.nameEn ?? ""}
+              placeholder="例如：Pumps"
+            />
+          </label>
+
           <details className="admin-advanced-config">
             <summary>展开高级网址标识设置</summary>
 
@@ -121,6 +131,16 @@ export default async function AdminCategoryEditPage({
               className="admin-textarea"
               rows={5}
               placeholder="请输入分类说明"
+            />
+          </label>
+
+          <label className="form-field">
+            <span>英文分类说明（可选）</span>
+            <textarea
+              name="descriptionEn"
+              className="admin-textarea"
+              rows={4}
+              defaultValue={category.descriptionEn ?? ""}
             />
           </label>
 

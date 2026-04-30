@@ -147,6 +147,8 @@ export async function createCategoryAction(formData: FormData) {
   const parentIdValue = formData.get("parentId");
   const sortOrderValue = formData.get("sortOrder");
   const isActive = formData.get("isActive") === "on";
+  const nameEn = String(formData.get("nameEn") ?? "").trim();
+  const descriptionEn = String(formData.get("descriptionEn") ?? "").trim();
 
   const parentId =
     typeof parentIdValue === "string" && parentIdValue
@@ -187,6 +189,8 @@ export async function createCategoryAction(formData: FormData) {
         parentId,
         sortOrder,
         isActive,
+        nameEn: nameEn || null,
+        descriptionEn: descriptionEn || null,
       },
     });
 

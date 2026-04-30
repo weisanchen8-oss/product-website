@@ -155,6 +155,9 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   const isFeatured = formData.get("isFeatured") === "on";
   const isManualHot = formData.get("isManualHot") === "on";
   const specsJson = buildSpecsJsonFromFormData(formData);
+  const nameEn = String(formData.get("nameEn") ?? "").trim();
+  const shortDescEn = String(formData.get("shortDescEn") ?? "").trim();
+  const fullDescEn = String(formData.get("fullDescEn") ?? "").trim();
 
   if (!name) throw new Error("missing-name");
   if (!categoryId || Number.isNaN(categoryId)) throw new Error("missing-category");
@@ -193,6 +196,9 @@ async function getProductPayload(formData: FormData, currentId?: number) {
     featuredSort,
     isManualHot,
     manualHotSort,
+    nameEn: nameEn || null,
+    shortDescEn: shortDescEn || null,
+    fullDescEn: fullDescEn || null,
   };
 }
 
