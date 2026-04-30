@@ -22,6 +22,8 @@ import {
 import { ProductSpecsEditor } from "@/components/admin/product-specs-editor";
 import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import { SubmitButton } from "@/components/admin/submit-button";
+import { ImageSelectToolbar } from "@/components/admin/image-select-toolbar";
+import { ConfirmSubmitActionButton } from "@/components/admin/confirm-submit-action-button";
 
 type AdminProductEditPageProps = {
   params: Promise<{
@@ -30,6 +32,7 @@ type AdminProductEditPageProps = {
   searchParams: Promise<{
     success?: string;
     error?: string;
+    count?: string;
   }>;
 };
 
@@ -116,7 +119,8 @@ export default async function AdminProductEditPage({
   searchParams,
 }: AdminProductEditPageProps) {
   const { id } = await params;
-  const { success, error } = await searchParams;
+  const { success, error, count } = await searchParams;
+  const successCount = Number(count);
   const productId = Number(id);
 
   if (!productId || Number.isNaN(productId)) {
@@ -165,11 +169,23 @@ export default async function AdminProductEditPage({
       ) : null}
 
       {success === "watermark-applied" ? (
-        <AdminActionToast message="文字水印添加成功。" />
+        <AdminActionToast
+          message={
+            Number.isFinite(successCount) && successCount > 0
+              ? `文字水印添加成功，共处理 ${successCount} 张图片。`
+              : "文字水印添加成功。"
+          }
+        />
       ) : null}
 
       {success === "logo-watermark-applied" ? (
-        <AdminActionToast message="Logo 水印添加成功。" />
+        <AdminActionToast
+          message={
+            Number.isFinite(successCount) && successCount > 0
+              ? `Logo 水印添加成功，共处理 ${successCount} 张图片。`
+              : "Logo 水印添加成功。"
+          }
+        />
       ) : null}
 
       {success === "ai-image-processed" ? (
@@ -361,6 +377,8 @@ export default async function AdminProductEditPage({
             上传图片
           </button>
         </form>
+ 
+        <ImageSelectToolbar />
 
         <form
           id="batch-watermark-form"
@@ -388,20 +406,22 @@ export default async function AdminProductEditPage({
 
           {/* 右侧按钮区 */}
           <div className="admin-watermark-actions">
-            <SubmitButton
+            <ConfirmSubmitActionButton
               className="watermark-action-button watermark-action-button-secondary"
               loadingText="加Logo中..."
+              confirmMessage="确定要给选中的图片添加 Logo 水印吗？"
               formAction={applyLogoWatermarkToSelectedProductImagesAction}
             >
               加Logo水印
-            </SubmitButton>
-            
-            <SubmitButton
+            </ConfirmSubmitActionButton>
+
+            <ConfirmSubmitActionButton
               className="watermark-action-button watermark-action-button-primary"
               loadingText="加水印中..."
+              confirmMessage="确定要给选中的图片添加文字水印吗？"
             >
               加文字水印
-            </SubmitButton>
+            </ConfirmSubmitActionButton>
           </div>
         </form>
 

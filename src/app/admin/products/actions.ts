@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台产品管理相关的服务端写入动作。
- * 支持产品新增、编辑、图片管理、AI图片优化、批量管理，
+ * 支持产品新增、编辑、图片管理、AI图片优化、文字水印、Logo水印、批量管理，
  * 并写入 AdminLog 操作日志与 beforeData / afterData 快照。
  */
 
@@ -87,6 +87,34 @@ function appendSuccessParam(pathValue: string, success: string) {
   return `${pathValue}${separator}success=${success}`;
 }
 
+function getReadableAiError(message: string) {
+  if (!message) {
+    return "AI 处理失败，请稍后重试。";
+  }
+
+  if (message.includes("unknown_foreground")) {
+    return "图片主体不清晰，AI 无法识别。建议使用背景简单、主体明显的产品图片。";
+  }
+
+  if (message.includes("missing_source")) {
+    return "图片读取失败，请重新上传图片后再试。";
+  }
+
+  if (message.includes("402") || message.includes("payment_required")) {
+    return "AI 服务额度已用完，请联系管理员处理。";
+  }
+
+  if (message.includes("401") || message.includes("Invalid API key")) {
+    return "AI 服务配置异常，请联系管理员检查 API Key。";
+  }
+
+  if (message.includes("network") || message.includes("fetch")) {
+    return "网络异常，AI 处理失败，请稍后再试。";
+  }
+
+  return "AI 处理失败，请更换图片或稍后重试。";
+}
+
 function buildSpecsJsonFromFormData(formData: FormData) {
   const keys = formData.getAll("specKey");
   const values = formData.getAll("specValue");
@@ -128,21 +156,10 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   const isManualHot = formData.get("isManualHot") === "on";
   const specsJson = buildSpecsJsonFromFormData(formData);
 
-  if (!name) {
-    throw new Error("missing-name");
-  }
-
-  if (!categoryId || Number.isNaN(categoryId)) {
-    throw new Error("missing-category");
-  }
-
-  if (!shortDesc) {
-    throw new Error("missing-short-desc");
-  }
-
-  if (!priceText) {
-    throw new Error("missing-price");
-  }
+  if (!name) throw new Error("missing-name");
+  if (!categoryId || Number.isNaN(categoryId)) throw new Error("missing-category");
+  if (!shortDesc) throw new Error("missing-short-desc");
+  if (!priceText) throw new Error("missing-price");
 
   const baseSlug = normalizeSlug(slugRaw || name) || `product-${Date.now()}`;
   const slug = await getUniqueProductSlug(baseSlug, currentId);
@@ -316,6 +333,7 @@ function getImageSnapshot(image: {
   productId: number;
   originalUrl: string;
   processedUrl: string | null;
+  watermarkedUrl?: string | null;
   isProcessed: boolean;
   processingStatus: string;
   logoApplied: boolean;
@@ -327,6 +345,7 @@ function getImageSnapshot(image: {
     productId: image.productId,
     originalUrl: image.originalUrl,
     processedUrl: image.processedUrl,
+    watermarkedUrl: image.watermarkedUrl ?? null,
     isProcessed: image.isProcessed,
     processingStatus: image.processingStatus,
     logoApplied: image.logoApplied,
@@ -594,7 +613,7 @@ export async function processProductImageWithAiAction(formData: FormData) {
     const originalFilePath = path.join(
       process.cwd(),
       "public",
-      image.originalUrl
+      image.originalUrl.replace(/^\/+/, "")
     );
 
     const transparentBuffer = await removeBackgroundWithRemoveBg(originalFilePath);
@@ -698,11 +717,9 @@ export async function applyTextWatermarkToProductImageAction(formData: FormData)
     sourceUrl.replace(/^\/+/, "")
   );
 
-  console.log("水印源路径：", sourceFilePath);
-
-  await fs.access(sourceFilePath); // 检查文件是否存在
-
   try {
+    await fs.access(sourceFilePath);
+
     const watermarkedBuffer = await createTextWatermarkImage({
       inputFilePath: sourceFilePath,
       watermarkText,
@@ -750,7 +767,7 @@ export async function applyTextWatermarkToProductImageAction(formData: FormData)
     redirect(`/admin/products/${productId}?error=watermark-failed`);
   }
 
-  redirect(`/admin/products/${productId}?success=watermark-applied`);
+  redirect(`/admin/products/${productId}?success=watermark-applied&count=1`);
 }
 
 export async function applyTextWatermarkToSelectedProductImagesAction(
@@ -783,6 +800,8 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
   if (!product) {
     redirect("/admin/products?error=product-not-found");
   }
+
+  let processedCount = 0;
 
   try {
     const images = await prisma.productImage.findMany({
@@ -830,6 +849,8 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
           logoApplied: true,
         },
       });
+
+      processedCount += 1;
     }
 
     revalidateProductPaths(product.slug, productId);
@@ -838,7 +859,7 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
     redirect(`/admin/products/${productId}?error=watermark-failed`);
   }
 
-  redirect(`/admin/products/${productId}?success=watermark-applied`);
+  redirect(`/admin/products/${productId}?success=watermark-applied&count=${processedCount}`);
 }
 
 export async function applyLogoWatermarkToProductImageAction(formData: FormData) {
@@ -871,7 +892,9 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
     redirect(`/admin/products/${productId}?error=image-not-found`);
   }
 
-  const sourceUrl = image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+  const sourceUrl =
+    image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+
   const sourceFilePath = path.join(
     process.cwd(),
     "public",
@@ -935,7 +958,108 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
     redirect(`/admin/products/${productId}?error=logo-watermark-failed`);
   }
 
-  redirect(`/admin/products/${productId}?success=logo-watermark-applied`);
+  redirect(`/admin/products/${productId}?success=logo-watermark-applied&count=1`);
+}
+
+export async function applyLogoWatermarkToSelectedProductImagesAction(
+  formData: FormData
+) {
+  const productId = Number(formData.get("productId"));
+  const logoFileValue = formData.get("logoFile");
+
+  const imageIds = formData
+    .getAll("imageIds")
+    .map((value) => Number(value))
+    .filter((id) => id && !Number.isNaN(id));
+
+  if (!productId || Number.isNaN(productId)) {
+    throw new Error("无效的产品 ID。");
+  }
+
+  if (imageIds.length === 0) {
+    redirect(`/admin/products/${productId}?error=missing-selected-images`);
+  }
+
+  if (!(logoFileValue instanceof File) || logoFileValue.size === 0) {
+    redirect(`/admin/products/${productId}?error=missing-logo-file`);
+  }
+
+  if (!logoFileValue.type.startsWith("image/")) {
+    redirect(`/admin/products/${productId}?error=invalid-logo-file`);
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+  });
+
+  if (!product) {
+    redirect("/admin/products?error=product-not-found");
+  }
+
+  let processedCount = 0;
+
+  try {
+    const images = await prisma.productImage.findMany({
+      where: {
+        productId,
+        id: { in: imageIds },
+      },
+    });
+
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const logoExtension = logoFileValue.name.split(".").pop() || "png";
+    const logoFileName = `${product.slug}-${Date.now()}-batch-logo.${logoExtension}`;
+    const logoFilePath = path.join(uploadDir, logoFileName);
+
+    const logoArrayBuffer = await logoFileValue.arrayBuffer();
+    await fs.writeFile(logoFilePath, Buffer.from(logoArrayBuffer));
+
+    for (const image of images) {
+      const sourceUrl =
+        image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+
+      const sourceFilePath = path.join(
+        process.cwd(),
+        "public",
+        sourceUrl.replace(/^\/+/, "")
+      );
+
+      await fs.access(sourceFilePath);
+
+      const watermarkedBuffer = await createLogoWatermarkImage({
+        inputFilePath: sourceFilePath,
+        logoFilePath,
+      });
+
+      const watermarkedFileName = `${product.slug}-${Date.now()}-${image.id}-logo-watermarked.png`;
+      const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
+      const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
+
+      await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+
+      await prisma.productImage.update({
+        where: { id: image.id },
+        data: {
+          watermarkedUrl: watermarkedPublicUrl,
+          watermarkType: "logo",
+          watermarkText: null,
+          watermarkAppliedAt: new Date(),
+          logoApplied: true,
+        },
+      });
+
+      processedCount += 1;
+    }
+
+    revalidateProductPaths(product.slug, productId);
+  } catch (error) {
+    console.error("批量 Logo 水印处理错误：", error);
+    redirect(`/admin/products/${productId}?error=logo-watermark-failed`);
+  }
+
+  redirect(`/admin/products/${productId}?success=logo-watermark-applied&count=${processedCount}`);
 }
 
 export async function setProductCoverImageAction(formData: FormData) {
@@ -1177,6 +1301,7 @@ export async function bulkManageProductsAction(formData: FormData) {
       product.images.flatMap((image) => [
         image.originalUrl,
         image.processedUrl,
+        image.watermarkedUrl,
       ])
     );
 
@@ -1296,127 +1421,4 @@ export async function bulkManageProductsAction(formData: FormData) {
   revalidateProductPaths();
 
   redirect(appendSuccessParam(redirectTo, "bulk-updated"));
-}
-
-function getReadableAiError(message: string) {
-  if (!message) return "AI 处理失败，请稍后重试。";
-
-  if (message.includes("unknown_foreground")) {
-    return "图片主体不清晰，AI 无法识别。建议使用背景简单、主体明显的产品图片。";
-  }
-
-  if (message.includes("missing_source")) {
-    return "图片读取失败，请重新上传图片后再试。";
-  }
-
-  if (message.includes("402") || message.includes("payment_required")) {
-    return "AI 服务额度已用完，请联系管理员处理。";
-  }
-
-  if (message.includes("401") || message.includes("Invalid API key")) {
-    return "AI 服务配置异常，请联系管理员检查 API Key。";
-  }
-
-  if (message.includes("network") || message.includes("fetch")) {
-    return "网络异常，AI 处理失败，请稍后再试。";
-  }
-
-  return "AI 处理失败，请更换图片或稍后重试。";
-}
-
-export async function applyLogoWatermarkToSelectedProductImagesAction(
-  formData: FormData
-) {
-  const productId = Number(formData.get("productId"));
-  const logoFileValue = formData.get("logoFile");
-
-  const imageIds = formData
-    .getAll("imageIds")
-    .map((value) => Number(value))
-    .filter((id) => id && !Number.isNaN(id));
-
-  if (!productId || Number.isNaN(productId)) {
-    throw new Error("无效的产品 ID。");
-  }
-
-  if (imageIds.length === 0) {
-    redirect(`/admin/products/${productId}?error=missing-selected-images`);
-  }
-
-  if (!(logoFileValue instanceof File) || logoFileValue.size === 0) {
-    redirect(`/admin/products/${productId}?error=missing-logo-file`);
-  }
-
-  if (!logoFileValue.type.startsWith("image/")) {
-    redirect(`/admin/products/${productId}?error=invalid-logo-file`);
-  }
-
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
-  });
-
-  if (!product) {
-    redirect("/admin/products?error=product-not-found");
-  }
-
-  try {
-    const images = await prisma.productImage.findMany({
-      where: {
-        productId,
-        id: { in: imageIds },
-      },
-    });
-
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const logoExtension = logoFileValue.name.split(".").pop() || "png";
-    const logoFileName = `${product.slug}-${Date.now()}-batch-logo.${logoExtension}`;
-    const logoFilePath = path.join(uploadDir, logoFileName);
-
-    const logoArrayBuffer = await logoFileValue.arrayBuffer();
-    await fs.writeFile(logoFilePath, Buffer.from(logoArrayBuffer));
-
-    for (const image of images) {
-      const sourceUrl =
-        image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
-
-      const sourceFilePath = path.join(
-        process.cwd(),
-        "public",
-        sourceUrl.replace(/^\/+/, "")
-      );
-
-      await fs.access(sourceFilePath);
-
-      const watermarkedBuffer = await createLogoWatermarkImage({
-        inputFilePath: sourceFilePath,
-        logoFilePath,
-      });
-
-      const watermarkedFileName = `${product.slug}-${Date.now()}-${image.id}-logo-watermarked.png`;
-      const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
-      const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
-
-      await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
-
-      await prisma.productImage.update({
-        where: { id: image.id },
-        data: {
-          watermarkedUrl: watermarkedPublicUrl,
-          watermarkType: "logo",
-          watermarkText: null,
-          watermarkAppliedAt: new Date(),
-          logoApplied: true,
-        },
-      });
-    }
-
-    revalidateProductPaths(product.slug, productId);
-  } catch (error) {
-    console.error("批量 Logo 水印处理错误：", error);
-    redirect(`/admin/products/${productId}?error=logo-watermark-failed`);
-  }
-
-  redirect(`/admin/products/${productId}?success=logo-watermark-applied`);
 }

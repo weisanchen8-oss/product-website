@@ -2,8 +2,10 @@
  * 文件作用：
  * 定义产品详情页。
  * 当前版本根据 slug 从数据库读取真实产品详情、图片、分类和相关推荐。
+ * 产品图片展示优先级：水印图 > AI处理图 > 原图。
  */
 
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHero } from "@/components/common/page-hero";
@@ -18,6 +20,14 @@ type ProductDetailPageProps = {
     slug: string;
   }>;
 };
+
+function getDisplayImageUrl(image: {
+  originalUrl: string;
+  processedUrl: string | null;
+  watermarkedUrl?: string | null;
+}) {
+  return image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
+}
 
 function parseSpecs(specsJson: string | null) {
   if (!specsJson) {
@@ -98,9 +108,10 @@ export default async function ProductDetailPage({
   const { product, relatedProducts } = data;
   const specs = parseSpecs(product.specsJson);
   const bestPromotion = getBestActivePromotion(product.promotionProducts);
+
   const galleryImages = product.images.map((image) => ({
     id: image.id,
-    url: image.processedUrl ?? image.originalUrl,
+    url: getDisplayImageUrl(image),
     alt: product.name,
   }));
 
@@ -125,32 +136,32 @@ export default async function ProductDetailPage({
               <div className="product-info-card">
                 <p className="eyebrow">产品分类：{product.category.name}</p>
                 <h2>{product.name}</h2>
-                <p className="product-info-text">
-                  {product.shortDesc}
-                </p>
+                <p className="product-info-text">{product.shortDesc}</p>
 
                 {bestPromotion ? (
                   <div className="product-detail-promotion-box">
-                    <span className="product-detail-promotion-label">限时促销</span>
+                    <span className="product-detail-promotion-label">
+                      限时促销
+                    </span>
                     <div>
                       <strong>{bestPromotion.title}</strong>
                       <p>
                         {getPromotionText(bestPromotion)}
-                        {bestPromotion.description ? ` · ${bestPromotion.description}` : ""}
+                        {bestPromotion.description
+                          ? ` · ${bestPromotion.description}`
+                          : ""}
                       </p>
-                      <em>同一产品参与多个促销时，系统默认展示优惠力度最大的一项，优惠不可叠加。</em>
+                      <em>
+                        同一产品参与多个促销时，系统默认展示优惠力度最大的一项，优惠不可叠加。
+                      </em>
                     </div>
                   </div>
                 ) : null}
 
                 <div className="product-tag-row">
                   <span className="product-tag">企业采购</span>
-                  {product.isFeatured ? (
-                    <span className="product-tag">推荐产品</span>
-                  ) : null}
-                  {product.isManualHot ? (
-                    <span className="product-tag">热销产品</span>
-                  ) : null}
+                  {product.isFeatured ? <span className="product-tag">推荐产品</span> : null}
+                  {product.isManualHot ? <span className="product-tag">热销产品</span> : null}
                 </div>
 
                 <div className="product-price-box">
@@ -217,36 +228,50 @@ export default async function ProductDetailPage({
             </div>
 
             <div className="card-grid related-grid">
-              {relatedProducts.map((item) => (
-                <article key={item.id} className="product-card">
-                  <Link
-                    href={`/product/${item.slug}`}
-                    className="product-image-placeholder product-link-block"
-                  >
-                    {item.images[0]?.processedUrl ? "展示图" : "产品图"}
-                  </Link>
+              {relatedProducts.map((item) => {
+                const coverImage = item.images[0];
 
-                  <div className="product-card-body">
-                    <h3>
-                      <Link href={`/product/${item.slug}`} className="text-link">
-                        {item.name}
-                      </Link>
-                    </h3>
+                return (
+                  <article key={item.id} className="product-card">
+                    <Link
+                      href={`/product/${item.slug}`}
+                      className="product-image-link product-link-block"
+                    >
+                      {coverImage ? (
+                        <Image
+                          src={getDisplayImageUrl(coverImage)}
+                          alt={item.name}
+                          width={320}
+                          height={240}
+                          className="product-card-image"
+                        />
+                      ) : (
+                        <div className="product-image-placeholder">暂无图片</div>
+                      )}
+                    </Link>
 
-                    <p>{item.shortDesc}</p>
+                    <div className="product-card-body">
+                      <h3>
+                        <Link href={`/product/${item.slug}`} className="text-link">
+                          {item.name}
+                        </Link>
+                      </h3>
 
-                    <div className="product-card-footer">
-                      <span>{item.priceText}</span>
-                      <Link
-                        href={`/product/${item.slug}`}
-                        className="ghost-button inline-button-link"
-                      >
-                        查看详情
-                      </Link>
+                      <p>{item.shortDesc}</p>
+
+                      <div className="product-card-footer">
+                        <span>{item.priceText}</span>
+                        <Link
+                          href={`/product/${item.slug}`}
+                          className="ghost-button inline-button-link"
+                        >
+                          查看详情
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>

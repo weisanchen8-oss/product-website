@@ -712,3 +712,21 @@
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
 }
+
+.admin-image-select-toolbar {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0 8px;
+  flex-wrap: wrap;
+}
+
+.admin-image-item:has(input[name="imageIds"]:checked) {
+  border-color: #0f172a;
+  background: #f8fafc;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+}
+
+.admin-image-item:has(input[name="imageIds"]:checked) .admin-image-preview {
+  outline: 3px solid #0f172a;
+  outline-offset: 3px;
+}

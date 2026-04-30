@@ -1,7 +1,9 @@
 /**
  * 文件作用：
  * 定义前台询单提交相关的服务端写入动作。
- * 当前版本要求用户登录后才能提交询单，并将询单绑定到当前登录用户。
+ * 当前版本支持多语言前台路径：
+ * - /zh/inquiry
+ * - /en/inquiry
  */
 
 "use server";
@@ -9,6 +11,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isFrontendLocale } from "@/lib/frontend-i18n";
 
 type SubmittedCartItem = {
   productId: number;
@@ -23,9 +26,7 @@ function createInquiryNo() {
 }
 
 function parseCartItems(value: FormDataEntryValue | null): SubmittedCartItem[] {
-  if (typeof value !== "string" || !value.trim()) {
-    return [];
-  }
+  if (typeof value !== "string" || !value.trim()) return [];
 
   try {
     const parsed = JSON.parse(value) as SubmittedCartItem[];
@@ -45,6 +46,9 @@ function parseCartItems(value: FormDataEntryValue | null): SubmittedCartItem[] {
 }
 
 export async function submitInquiryAction(formData: FormData) {
+  const localeValue = String(formData.get("locale") ?? "zh");
+  const locale = isFrontendLocale(localeValue) ? localeValue : "zh";
+
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
@@ -60,20 +64,18 @@ export async function submitInquiryAction(formData: FormData) {
   const cartItems = parseCartItems(formData.get("cartItems"));
 
   if (!contactName || !companyName || !phone || !email) {
-    redirect("/inquiry/submit?error=missing-required");
+    redirect(`/${locale}/inquiry?error=missing-required`);
   }
 
   if (cartItems.length === 0) {
-    redirect("/inquiry/submit?error=empty-cart");
+    redirect(`/${locale}/inquiry?error=empty-cart`);
   }
 
   const productIds = cartItems.map((item) => item.productId);
 
   const products = await prisma.product.findMany({
     where: {
-      id: {
-        in: productIds,
-      },
+      id: { in: productIds },
       isActive: true,
     },
   });
@@ -83,7 +85,7 @@ export async function submitInquiryAction(formData: FormData) {
   const validItems = cartItems.filter((item) => productMap.has(item.productId));
 
   if (validItems.length === 0) {
-    redirect("/inquiry/submit?error=no-valid-products");
+    redirect(`/${locale}/inquiry?error=no-valid-products`);
   }
 
   const inquiryNo = createInquiryNo();
@@ -123,5 +125,5 @@ export async function submitInquiryAction(formData: FormData) {
     },
   });
 
-  redirect(`/inquiry/success/${inquiry.inquiryNo}`);
+  redirect(`/${locale}/inquiry/success/${inquiry.inquiryNo}`);
 }

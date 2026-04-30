@@ -22,6 +22,8 @@ datasource db {
 model Category {
   id          Int      @id @default(autoincrement())
   name        String
+  nameEn        String?
+  descriptionEn String?
   slug        String   @unique
   description String?
   imageUrl    String?
@@ -39,6 +41,9 @@ model Category {
 model Product {
   id        Int     @id @default(autoincrement())
   name      String
+  nameEn      String?
+  shortDescEn String?
+  fullDescEn  String?
   slug      String  @unique
   shortDesc String
   fullDesc  String?

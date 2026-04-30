@@ -45,3 +45,383 @@ select,
 textarea {
   font: inherit;
 }
+
+/* 
+ * 文件作用：
+ * 修复前台 Header 在多语言模式下的布局。
+ * 让导航、搜索框、按钮区域在英文文案较长时仍保持横向对齐。
+ */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid #e5e7eb;
+  backdrop-filter: blur(12px);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 72px;
+  flex-wrap: nowrap;
+}
+
+.site-logo {
+  flex: 0 0 auto;
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.site-nav a {
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+.header-search input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 0 18px;
+  font-size: 14px;
+  outline: none;
+}
+
+.header-search button {
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 0 18px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.header-actions .primary-button,
+.header-actions .ghost-button {
+  white-space: nowrap;
+}
+
+.header-user-name {
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+}
+
+/* ================================
+   文件作用：
+   全局 UI 视觉优化基础层。
+   统一网站颜色、圆角、间距、卡片、按钮、顶栏玻璃拟态、
+   hover 动效和后台/前台常用布局基础样式。
+================================ */
+
+/* ---------- 全局设计变量 ---------- */
+:root {
+  --ui-bg: #f8fafc;
+  --ui-surface: #ffffff;
+  --ui-surface-soft: #f1f5f9;
+
+  --ui-primary: #2563eb;
+  --ui-primary-soft: #dbeafe;
+
+  --ui-success: #22c55e;
+  --ui-warning: #f59e0b;
+  --ui-danger: #ef4444;
+
+  --ui-text-main: #0f172a;
+  --ui-text-muted: #64748b;
+  --ui-border: #e2e8f0;
+
+  --ui-radius-sm: 8px;
+  --ui-radius-md: 12px;
+  --ui-radius-lg: 16px;
+  --ui-radius-xl: 24px;
+
+  --ui-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --ui-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --ui-shadow-lg: 0 18px 45px rgba(15, 23, 42, 0.12);
+
+  --ui-transition: 180ms ease;
+}
+
+/* ---------- 页面整体质感 ---------- */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 32rem),
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.06), transparent 28rem),
+    var(--ui-bg);
+  color: var(--ui-text-main);
+}
+
+/* ---------- 统一顶部导航：滚动时始终可见 ---------- */
+.site-header,
+.admin-header,
+.main-header,
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* ---------- 通用卡片系统 ---------- */
+.ui-card,
+.admin-card,
+.dashboard-card,
+.product-card,
+.category-card,
+.analytics-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--ui-radius-md);
+  box-shadow: var(--ui-shadow-sm);
+  transition:
+    transform var(--ui-transition),
+    box-shadow var(--ui-transition),
+    border-color var(--ui-transition),
+    background var(--ui-transition);
+}
+
+.ui-card:hover,
+.admin-card:hover,
+.dashboard-card:hover,
+.product-card:hover,
+.category-card:hover,
+.analytics-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--ui-shadow-md);
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+/* ---------- 重点卡片：用于首页主推、数据看板核心指标 ---------- */
+.ui-card-featured,
+.admin-card-featured,
+.dashboard-card-featured {
+  border-radius: var(--ui-radius-lg);
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(255, 255, 255, 0.92)),
+    rgba(255, 255, 255, 0.92);
+  box-shadow: var(--ui-shadow-md);
+}
+
+/* ---------- Bento / 看板网格基础 ---------- */
+.ui-grid,
+.admin-grid,
+.dashboard-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.ui-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ui-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* ---------- 按钮交互反馈 ---------- */
+button,
+.button,
+.btn,
+.admin-button,
+.primary-button {
+  transition:
+    transform var(--ui-transition),
+    box-shadow var(--ui-transition),
+    background var(--ui-transition),
+    border-color var(--ui-transition),
+    opacity var(--ui-transition);
+}
+
+button:hover,
+.button:hover,
+.btn:hover,
+.admin-button:hover,
+.primary-button:hover {
+  transform: translateY(-1px);
+}
+
+button:active,
+.button:active,
+.btn:active,
+.admin-button:active,
+.primary-button:active {
+  transform: scale(0.98);
+}
+
+/* ---------- 输入框统一质感 ---------- */
+input,
+select,
+textarea {
+  border-radius: var(--ui-radius-sm);
+  transition:
+    border-color var(--ui-transition),
+    box-shadow var(--ui-transition),
+    background var(--ui-transition);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.65);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* ---------- 浮窗 / 弹窗玻璃拟态 ---------- */
+.ui-glass,
+.modal,
+.dialog,
+.popover,
+.floating-panel {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: var(--ui-shadow-lg);
+  border-radius: var(--ui-radius-lg);
+}
+
+/* ---------- 标签系统 ---------- */
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ui-badge-primary {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.ui-badge-success {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.ui-badge-warning {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.ui-badge-danger {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+/* ---------- 加载骨架屏 ---------- */
+.ui-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #e2e8f0;
+  border-radius: var(--ui-radius-sm);
+}
+
+.ui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: ui-skeleton-loading 1.3s infinite;
+}
+
+@keyframes ui-skeleton-loading {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ---------- 页面进入动画 ---------- */
+.ui-page-enter {
+  animation: ui-page-enter 240ms ease both;
+}
+
+@keyframes ui-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- 响应式处理 ---------- */
+@media (max-width: 1024px) {
+  .ui-grid-4,
+  .ui-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-grid-4,
+  .ui-grid-3,
+  .ui-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-grid,
+  .admin-grid,
+  .dashboard-grid {
+    gap: 16px;
+  }
+}

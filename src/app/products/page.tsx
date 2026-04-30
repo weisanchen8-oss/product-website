@@ -107,7 +107,11 @@ export default async function ProductsPage() {
                       >
                         {coverImage ? (
                           <Image
-                            src={coverImage.processedUrl ?? coverImage.originalUrl}
+                            src={
+                              coverImage.watermarkedUrl ??
+                              coverImage.processedUrl ??
+                              coverImage.originalUrl
+                            }
                             alt={product.name}
                             width={320}
                             height={240}
