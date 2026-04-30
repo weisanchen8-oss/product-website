@@ -1,21 +1,22 @@
 /**
  * 文件作用：
  * 定义网站首页。
- * 当前版本从数据库读取：
- * - Banner
- * - 公司简介
- * - 企业优势
- * - 推荐产品
- * - 热销产品（人工优先 + 销量补位）
- * - 分类列表
+ * 当前版本使用 Bento Grid + 渐变主视觉 + 统一卡片系统，
+ * 展示 Banner、公司简介、推荐产品、热销产品、分类入口和企业优势。
  */
 
-import Link from "next/link";
 import Image from "next/image";
-import { HomeHero } from "@/components/home/home-hero";
-import { HomeSectionTitle } from "@/components/home/home-section-title";
+import Link from "next/link";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import {
+  UiBadge,
+  UiButton,
+  UiCard,
+  UiContainer,
+  UiPage,
+  UiSectionHeader,
+} from "@/components/ui-system";
 import { getHomePageData } from "@/lib/home-data";
 
 type BannerExtra = {
@@ -39,7 +40,7 @@ function safeParseJson<T>(value: string | null | undefined): T {
   if (!value) return {} as T;
 
   try {
-    return JSON.parse(value);
+    return JSON.parse(value) as T;
   } catch {
     return {} as T;
   }
@@ -56,8 +57,7 @@ function safeParseAdvantages(value: string | null | undefined): AdvantageItem[] 
     return parsed
       .map((item) => ({
         title: typeof item?.title === "string" ? item.title : "",
-        description:
-          typeof item?.description === "string" ? item.description : "",
+        description: typeof item?.description === "string" ? item.description : "",
       }))
       .filter((item) => item.title || item.description);
   } catch {
@@ -76,10 +76,7 @@ export default async function HomePage() {
   } = await getHomePageData();
 
   const bannerExtra = safeParseJson<BannerExtra>(banner?.extraJson);
-  const companyIntroExtra = safeParseJson<CompanyIntroExtra>(
-    companyIntro?.extraJson
-  );
-
+  const companyIntroExtra = safeParseJson<CompanyIntroExtra>(companyIntro?.extraJson);
   const advantageItems = safeParseAdvantages(homeAdvantages?.content);
 
   const visibleAdvantages =
@@ -88,269 +85,288 @@ export default async function HomePage() {
       : [
           {
             title: "专业产品展示",
-            description: "突出产品信息层次，便于客户快速建立认知。",
+            description: "突出产品信息层次，帮助客户快速理解产品价值。",
           },
           {
             title: "高效询单流程",
-            description: "支持客户快速整理需求，提升沟通效率。",
+            description: "让客户从浏览产品到提交需求的路径更短、更清晰。",
           },
           {
-            title: "品牌统一形象",
-            description: "统一页面风格与产品展示逻辑，增强企业可信度。",
+            title: "统一品牌形象",
+            description: "通过统一视觉系统提升企业专业感和可信度。",
           },
           {
             title: "可持续扩展",
-            description: "后续可接入更多数据与后台配置能力。",
+            description: "后续可继续接入数据分析、促销运营和行业风险监控。",
           },
         ];
 
   return (
-    <div className="site-shell">
+    <>
       <SiteHeader />
 
-      <main>
-        <HomeHero
-          title={banner?.title ?? undefined}
-          description={banner?.content ?? undefined}
-          imageUrl={banner?.imageUrl ?? undefined}
-          primaryButtonText={bannerExtra.primaryButtonText}
-          primaryButtonLink={bannerExtra.primaryButtonHref}
-          secondaryButtonText={bannerExtra.secondaryButtonText}
-          secondaryButtonLink={bannerExtra.secondaryButtonHref}
-        />
+      <UiPage>
+        <UiContainer className="space-y-12">
+          <section className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 p-8 text-white shadow-lg sm:p-10">
+              <div className="absolute right-[-80px] top-[-80px] h-64 w-64 rounded-full bg-white/15 blur-2xl" />
+              <div className="absolute bottom-[-100px] left-[20%] h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl" />
 
-        <section className="section">
-          <div className="container">
-            <div className="intro-card">
-              <div className="intro-content">
-                <p className="eyebrow">公司简介</p>
-                <h2>
-                  {companyIntro?.title ??
-                    "以清晰展示和高效询单为核心的企业产品展示平台"}
-                </h2>
-                <p>
-                  {companyIntro?.content ??
-                    "本平台用于集中展示企业产品信息，帮助客户完成浏览、搜索、筛选和询单。页面风格以简洁、大气、可信赖为核心，兼顾品牌展示与业务转化。"}
+              <div className="relative z-10 max-w-2xl">
+                <UiBadge className="bg-white/15 text-white backdrop-blur">
+                  B2B Product Platform
+                </UiBadge>
+
+                <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+                  {banner?.title ?? "面向出口贸易公司的智能产品展示平台"}
+                </h1>
+
+                <p className="mt-5 max-w-xl text-base leading-7 text-blue-50">
+                  {banner?.content ??
+                    "集中展示产品、分类、热销推荐和询单入口，帮助企业打造更专业、更可信赖的线上产品门户。"}
                 </p>
 
-                <div className="intro-link-row">
-                  <Link
-                    href={companyIntroExtra.buttonHref || "/company"}
-                    className="ghost-button inline-button-link"
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <UiButton
+                    href={bannerExtra.primaryButtonHref || "/products"}
+                    className="bg-white text-blue-700 hover:bg-blue-50"
                   >
-                    {companyIntroExtra.buttonText || "查看公司介绍"}
-                  </Link>
+                    {bannerExtra.primaryButtonText || "浏览产品"}
+                  </UiButton>
+
+                  <UiButton
+                    href={bannerExtra.secondaryButtonHref || "/contact"}
+                    variant="secondary"
+                    className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+                  >
+                    {bannerExtra.secondaryButtonText || "提交询单"}
+                  </UiButton>
                 </div>
               </div>
+            </div>
 
-              <div className="intro-placeholder">
-                {companyIntro?.imageUrl ? (
+            <div className="grid gap-6">
+              <UiCard variant="featured" className="min-h-[180px]">
+                <UiBadge variant="primary">经营升级</UiBadge>
+                <h2 className="mt-4 text-xl font-bold text-slate-950">
+                  从产品展示到运营管理
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-500">
+                  网站不仅展示产品，还可以继续扩展询单管理、客户管理、数据分析、促销活动与行业风险监控。
+                </p>
+              </UiCard>
+
+              <UiCard className="min-h-[160px]">
+                <UiBadge variant="success">专业可信</UiBadge>
+                <p className="mt-4 text-3xl font-bold text-slate-950">
+                  {categories.length}+
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  当前可展示产品分类，支持后续持续扩展。
+                </p>
+              </UiCard>
+            </div>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+            <UiCard className="overflow-hidden p-0">
+              {companyIntro?.imageUrl ? (
+                <div className="relative h-72 w-full">
                   <Image
                     src={companyIntro.imageUrl}
-                    alt={companyIntro.title ?? "公司介绍图片"}
-                    width={520}
-                    height={320}
-                    className="intro-image"
+                    alt={companyIntro.title ?? "公司介绍"}
+                    fill
+                    className="object-cover"
                   />
-                ) : (
-                  "公司介绍 / 品牌图预留区"
-                )}
+                </div>
+              ) : (
+                <div className="flex h-72 items-center justify-center bg-slate-100 text-sm text-slate-400">
+                  公司介绍 / 品牌图预留区
+                </div>
+              )}
+            </UiCard>
+
+            <UiCard className="flex flex-col justify-center">
+              <UiBadge variant="primary">公司简介</UiBadge>
+              <h2 className="mt-5 text-2xl font-bold tracking-tight text-slate-950">
+                {companyIntro?.title ?? "以清晰展示和高效询单为核心的企业产品展示平台"}
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-500">
+                {companyIntro?.content ??
+                  "本平台用于集中展示企业产品信息，帮助客户完成浏览、搜索、筛选和询单。页面风格以简洁、大气、可信赖为核心，兼顾品牌展示与业务转化。"}
+              </p>
+              <div className="mt-6">
+                <UiButton href={companyIntroExtra.buttonHref || "/about"} variant="secondary">
+                  {companyIntroExtra.buttonText || "查看公司介绍"}
+                </UiButton>
               </div>
-            </div>
-          </div>
-        </section>
+            </UiCard>
+          </section>
 
-        <section className="section">
-          <div className="container">
-            <HomeSectionTitle
-              eyebrow="Featured"
+          <section>
+            <UiSectionHeader
+              eyebrow="Featured Products"
               title="推荐产品"
-              description="该区域当前已从数据库读取推荐产品数据。"
+              description="通过更大的产品卡片突出核心产品，增强首页视觉层级和转化入口。"
+              action={<UiButton href="/products">查看全部产品</UiButton>}
             />
 
-            <div className="card-grid">
-              {featuredProducts.map((product) => (
-                <article key={product.id} className="product-card">
-                  <Link
-                    href={`/product/${product.slug}`}
-                    className="product-image-link product-link-block"
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {featuredProducts.map((product, index) => (
+                <Link key={product.id} href={`/products/${product.slug}`} className="group">
+                  <UiCard
+                    className={index === 0 ? "md:col-span-2 lg:col-span-2" : ""}
+                    variant={index === 0 ? "featured" : "default"}
                   >
-                    {product.images[0] ? (
-                      <Image
-                        src={
-                          product.images[0].processedUrl ??
-                          product.images[0].originalUrl
-                        }
-                        alt={product.name}
-                        width={320}
-                        height={240}
-                        className="product-card-image"
-                      />
-                    ) : (
-                      <div className="product-image-placeholder">暂无图片</div>
-                    )}
-                  </Link>
-
-                  <div className="product-card-body">
-                    <h3>
-                      <Link
-                        href={`/product/${product.slug}`}
-                        className="text-link"
-                      >
-                        {product.name}
-                      </Link>
-                    </h3>
-
-                    <p>{product.shortDesc}</p>
-
-                    <div className="product-card-footer">
-                      <span>{product.priceText}</span>
-                      <Link
-                        href={`/product/${product.slug}`}
-                        className="ghost-button inline-button-link"
-                      >
-                        查看详情
-                      </Link>
+                    <div
+                      className={`relative overflow-hidden rounded-2xl bg-slate-100 ${
+                        index === 0 ? "h-72" : "h-48"
+                      }`}
+                    >
+                       {product.images[0]?.watermarkedUrl ? (
+                        <Image
+                          src={product.images[0].watermarkedUrl}
+                          alt={product.name}
+                          fill
+                          className="object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                          暂无图片
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        <section className="section section-muted">
-          <div className="container">
-            <HomeSectionTitle
-              eyebrow="Hot Products"
-              title="热销推荐"
-              description="该区域已启用人工热销优先、销量补位的混合推荐逻辑。"
-            />
-
-            <div className="card-grid">
-              {hotProducts.map((product) => (
-                <article key={product.id} className="product-card">
-                  <Link
-                    href={`/product/${product.slug}`}
-                    className="product-image-link product-link-block"
-                  >
-                    {product.images[0] ? (
-                      <Image
-                        src={
-                          product.images[0].processedUrl ??
-                          product.images[0].originalUrl
-                        }
-                        alt={product.name}
-                        width={320}
-                        height={240}
-                        className="product-card-image"
-                      />
-                    ) : (
-                      <div className="product-image-placeholder">暂无图片</div>
-                    )}
-                  </Link>
-
-                  <div className="product-card-body">
-                    <h3>
-                      <Link
-                        href={`/product/${product.slug}`}
-                        className="text-link"
-                      >
+                    <div className="mt-4">
+                      <h3 className="line-clamp-1 text-lg font-bold text-slate-950">
                         {product.name}
-                      </Link>
-                    </h3>
-
-                    <p>{product.shortDesc}</p>
-
-                    <div className="product-card-footer">
-                      <span>{product.priceText}</span>
-                      <Link
-                        href={`/product/${product.slug}`}
-                        className="ghost-button inline-button-link"
-                      >
-                        查看详情
-                      </Link>
+                      </h3>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
+                        {product.shortDesc}
+                      </p>
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className="font-semibold text-blue-600">
+                          {product.priceText}
+                        </span>
+                        <span className="text-sm font-medium text-slate-500">
+                          查看详情 →
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="page-actions">
-              <Link
-                href="/search?q=热销"
-                className="ghost-button inline-button-link"
-              >
-                查看更多热销结果
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="section">
-          <div className="container">
-            <HomeSectionTitle
-              eyebrow="Categories"
-              title="产品分类"
-              description="该区域已从数据库读取分类数据。"
-            />
-
-            <div className="category-grid">
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  href="/products"
-                  className="category-card category-link-card"
-                >
-                  <div className="category-card-image-wrap">
-                    {category.imageUrl ? (
-                      <Image
-                        src={category.imageUrl}
-                        alt={category.name}
-                        width={96}
-                        height={96}
-                        className="category-card-image"
-                      />
-                    ) : (
-                      <span className="category-card-fallback-icon">
-                        {category.name.slice(0, 1)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="category-card-content">
-                    <h3>{category.name}</h3>
-                    <p>{category.description ?? "查看该分类下的相关产品。"}</p>
-                  </div>
-
-                  <span className="category-card-more">查看产品 →</span>
+                  </UiCard>
                 </Link>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="section section-muted">
-          <div className="container">
-            <HomeSectionTitle
-              eyebrow="Advantages"
-              title={homeAdvantages?.title ?? "企业优势"}
-              description="该区域已支持后台内容管理配置。"
+          <section>
+            <UiSectionHeader
+              eyebrow="Hot Products"
+              title="热销产品"
+              description="将热销产品集中展示，强化用户对热门产品的快速判断。"
             />
 
-            <div className="advantage-grid">
-              {visibleAdvantages.map((item, index) => (
-                <div className="advantage-card" key={`${item.title}-${index}`}>
-                  <h3>{item.title}</h3>
-                  <p>{item.description}</p>
-                </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {hotProducts.map((product) => (
+                <Link key={product.id} href={`/products/${product.slug}`} className="group">
+                  <UiCard>
+                    <div className="relative h-44 overflow-hidden rounded-2xl bg-slate-100">
+                      {product.images[0] ? (
+                        <Image
+                          src={product.images[0].watermarkedUrl!}
+                          alt={product.name}
+                          fill
+                          className="object-cover transition duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                          暂无图片
+                        </div>
+                      )}
+
+                      <div className="absolute left-3 top-3">
+                        <UiBadge variant="warning">Hot</UiBadge>
+                      </div>
+                    </div>
+
+                    <h3 className="mt-4 line-clamp-1 text-base font-bold text-slate-950">
+                      {product.name}
+                    </h3>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
+                      {product.shortDesc}
+                    </p>
+                    <p className="mt-4 font-semibold text-blue-600">
+                      {product.priceText}
+                    </p>
+                  </UiCard>
+                </Link>
               ))}
             </div>
-          </div>
-        </section>
-      </main>
+          </section>
+
+          <section>
+            <UiSectionHeader
+              eyebrow="Categories"
+              title="产品分类"
+              description="以卡片入口展示分类，便于客户快速进入感兴趣的产品集合。"
+            />
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {categories.map((category) => (
+                <Link key={category.id} href={`/products?category=${category.slug}`}>
+                  <UiCard className="flex items-center gap-4">
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-blue-50">
+                      {category.imageUrl ? (
+                        <Image
+                          src={category.imageUrl}
+                          alt={category.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xl font-bold text-blue-600">
+                          {category.name.slice(0, 1)}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-slate-950">{category.name}</h3>
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">
+                        {category.description ?? "查看该分类下的相关产品。"}
+                      </p>
+                    </div>
+                  </UiCard>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <UiSectionHeader
+              eyebrow="Advantages"
+              title="企业优势"
+              description="用简洁卡片承载核心优势，提升首页品牌表达。"
+            />
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {visibleAdvantages.map((item, index) => (
+                <UiCard key={`${item.title}-${index}`}>
+                  <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-600">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+                  <h3 className="font-bold text-slate-950">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {item.description}
+                  </p>
+                </UiCard>
+              ))}
+            </div>
+          </section>
+        </UiContainer>
+      </UiPage>
 
       <SiteFooter />
-    </div>
+    </>
   );
 }
