@@ -15,6 +15,7 @@ import { AddToInquiryButton } from "@/components/inquiry/add-to-inquiry-button";
 import { getProductDetailBySlug } from "@/lib/product-data";
 import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
 import { getLocalizedText } from "@/lib/localized-content";
+import { formatLocalizedPrice } from "@/lib/currency";
 
 type ProductDetailPageProps = {
   params: Promise<{
@@ -128,6 +129,7 @@ export default async function LocaleProductDetailPage({
     product.category.name,
     product.category.nameEn
   );
+  const displayPrice = formatLocalizedPrice(locale, product.priceText);
 
   const specs = parseSpecs(product.specsJson);
   const bestPromotion = getBestActivePromotion(product.promotionProducts);
@@ -193,14 +195,14 @@ export default async function LocaleProductDetailPage({
 
               <div className="product-price-line">
                 <span>{isEn ? "Reference Price:" : "参考价格："}</span>
-                <strong>{product.priceText}</strong>
+                <strong>{displayPrice}</strong>
               </div>
 
               <AddToInquiryButton
                 productId={product.id}
                 productName={productName}
                 productSlug={product.slug}
-                priceText={product.priceText}
+                priceText={displayPrice}
               />
 
               <Link
@@ -282,6 +284,8 @@ export default async function LocaleProductDetailPage({
                   item.shortDescEn
                 );
 
+                const relatedPrice = formatLocalizedPrice(locale, item.priceText);
+
                 return (
                   <article key={item.id} className="product-card">
                     <Link
@@ -312,7 +316,7 @@ export default async function LocaleProductDetailPage({
                       <p>{relatedDesc}</p>
 
                       <div className="product-card-footer">
-                        <span>{item.priceText}</span>
+                        <span>{relatedPrice}</span>
 
                         <Link
                           href={getFrontendPath(locale, `/product/${item.slug}`)}

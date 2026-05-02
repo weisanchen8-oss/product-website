@@ -72,7 +72,9 @@ model Product {
 model Promotion {
   id            Int      @id @default(autoincrement())
   title         String
+  titleEn       String?
   description   String?
+  descriptionEn String?
   discountType  String   @default("percent")
   discountValue Float
   startAt       DateTime
@@ -221,13 +223,16 @@ model InquiryLog {
 }
 
 model SiteContent {
-  id         Int      @id @default(autoincrement())
-  contentKey String   @unique
-  title      String?
-  content    String?
-  imageUrl   String?
-  extraJson  String?
-  updatedAt  DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  contentKey  String   @unique
+  title       String?
+  titleEn     String?
+  content     String?
+  contentEn   String?
+  imageUrl    String?
+  extraJson   String?
+  extraJsonEn String?
+  updatedAt   DateTime @updatedAt
 }
 
 model AdminLog {

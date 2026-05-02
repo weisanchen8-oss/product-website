@@ -226,6 +226,8 @@ export async function updateCategoryAction(formData: FormData) {
   const parentIdValue = formData.get("parentId");
   const sortOrderValue = formData.get("sortOrder");
   const isActive = formData.get("isActive") === "on";
+  const nameEn = String(formData.get("nameEn") ?? "").trim();
+  const descriptionEn = String(formData.get("descriptionEn") ?? "").trim();
 
   const parentId =
     typeof parentIdValue === "string" && parentIdValue
@@ -279,8 +281,10 @@ export async function updateCategoryAction(formData: FormData) {
       },
       data: {
         name,
+        nameEn: nameEn || null,
         slug,
         description,
+        descriptionEn: descriptionEn || null,
         imageUrl: finalImageUrl,
         parentId,
         sortOrder: Number.isNaN(sortOrder) ? 0 : sortOrder,

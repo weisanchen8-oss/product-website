@@ -11,6 +11,7 @@
  * - 批量上架 / 下架 / 推荐 / 热销 / 删除
  * - 删除前弹窗确认
  * - 产品列表分页，每页 10 条
+ * 当前版本统一产品管理与分类管理的筛选栏、按钮、标题和列表卡片排版。
  */
 
 import Link from "next/link";
@@ -108,7 +109,6 @@ export default async function AdminProductsPage({
 
   const bulkProducts = products.map((product) => {
     const coverImage = product.images[0];
-
     const now = new Date();
 
     const activePromotions = product.promotionProducts
@@ -156,109 +156,144 @@ export default async function AdminProductsPage({
         <AdminActionToast message="批量操作失败：无效的操作类型。" />
       ) : null}
 
-      <div className="admin-product-header">
-        <div>
-          <h1>产品管理</h1>
-          <p>可按关键词、分类、上架状态、推荐状态和热销状态筛选产品。</p>
+      <div className="space-y-8">
+        <div className="admin-page-header">
+          <div>
+            <h1>产品管理</h1>
+            <p>可按关键词、分类、上架状态、推荐状态和热销状态筛选产品。</p>
+          </div>
+
+          <Link href="/admin/products/new" className="admin-primary-btn">
+            新增产品
+          </Link>
         </div>
 
-        <Link href="/admin/products/new" className="primary-button">
-          新增产品
-        </Link>
-      </div>
+        <section className="rounded-[28px] bg-white p-8 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
+          <form className="grid gap-5 xl:grid-cols-[1.6fr_1fr_1fr_1fr_1fr_auto_auto] xl:items-end">
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-600">
+                关键词
+              </span>
+              <input
+                name="q"
+                type="search"
+                defaultValue={keyword}
+                placeholder="搜索产品名称、分类、关键词、简介或价格"
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#1E3A5F] focus:ring-4 focus:ring-slate-200"
+              />
+            </label>
 
-      <section className="admin-product-toolbar">
-        <form className="admin-product-filter-form">
-          <div className="admin-filter-field admin-filter-keyword">
-            <label>关键词</label>
-            <input
-              name="q"
-              type="search"
-              defaultValue={keyword}
-              placeholder="搜索产品名称、分类、关键词、简介或价格"
-            />
-          </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-600">
+                分类
+              </span>
+              <select
+                name="categoryId"
+                defaultValue={categoryId}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#1E3A5F] focus:ring-4 focus:ring-slate-200"
+              >
+                <option value="all">全部分类</option>
+                {categories.map((category) => (
+                  <option value={String(category.id)} key={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <div className="admin-filter-field">
-            <label>分类</label>
-            <select name="categoryId" defaultValue={categoryId}>
-              <option value="all">全部分类</option>
-              {categories.map((category) => (
-                <option value={String(category.id)} key={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-600">
+                上架状态
+              </span>
+              <select
+                name="activeStatus"
+                defaultValue={activeStatus}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#1E3A5F] focus:ring-4 focus:ring-slate-200"
+              >
+                <option value="all">全部</option>
+                <option value="active">已上架</option>
+                <option value="inactive">未上架</option>
+              </select>
+            </label>
 
-          <div className="admin-filter-field">
-            <label>上架状态</label>
-            <select name="activeStatus" defaultValue={activeStatus}>
-              <option value="all">全部</option>
-              <option value="active">已上架</option>
-              <option value="inactive">未上架</option>
-            </select>
-          </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-600">
+                推荐状态
+              </span>
+              <select
+                name="featuredStatus"
+                defaultValue={featuredStatus}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#1E3A5F] focus:ring-4 focus:ring-slate-200"
+              >
+                <option value="all">全部</option>
+                <option value="featured">已推荐</option>
+                <option value="not-featured">未推荐</option>
+              </select>
+            </label>
 
-          <div className="admin-filter-field">
-            <label>推荐状态</label>
-            <select name="featuredStatus" defaultValue={featuredStatus}>
-              <option value="all">全部</option>
-              <option value="featured">已推荐</option>
-              <option value="not-featured">未推荐</option>
-            </select>
-          </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-slate-600">
+                热销状态
+              </span>
+              <select
+                name="hotStatus"
+                defaultValue={hotStatus}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-[#1E3A5F] focus:ring-4 focus:ring-slate-200"
+              >
+                <option value="all">全部</option>
+                <option value="hot">已标记热销</option>
+                <option value="not-hot">未标记热销</option>
+              </select>
+            </label>
 
-          <div className="admin-filter-field">
-            <label>热销状态</label>
-            <select name="hotStatus" defaultValue={hotStatus}>
-              <option value="all">全部</option>
-              <option value="hot">已标记热销</option>
-              <option value="not-hot">未标记热销</option>
-            </select>
-          </div>
-
-          <div className="admin-filter-actions">
-            <button type="submit" className="admin-search-button">
+            <button
+              type="submit"
+              className="h-12 rounded-xl bg-[#111827] px-7 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#1E3A5F]"
+            >
               筛选
             </button>
 
-            <Link href="/admin/products" className="admin-reset-link">
+            <Link
+              href="/admin/products"
+              className="flex h-12 items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
               重置
             </Link>
-          </div>
-        </form>
-      </section>
+          </form>
+        </section>
 
-      <section className="admin-product-table-card">
-        <div className="admin-product-table-header">
-          <div>
-            <h2>产品列表</h2>
-            <p>
+        <section className="rounded-[28px] bg-white p-8 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-950">
+              产品列表
+            </h2>
+            <p className="mt-4 text-sm text-slate-500">
               当前筛选结果共 {totalCount} 个产品，每页显示 10 个
             </p>
           </div>
-        </div>
 
-        <ProductBulkForm
-          products={bulkProducts}
-          promotions={promotions}
-          redirectTo={currentPath}
-        />
+          <ProductBulkForm
+            products={bulkProducts}
+            promotions={promotions}
+            redirectTo={currentPath}
+          />
 
-        <AdminPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          basePath="/admin/products"
-          searchParams={{
-            q: keyword,
-            categoryId,
-            activeStatus,
-            featuredStatus,
-            hotStatus,
-          }}
-        />
-      </section>
+          <div className="mt-6">
+            <AdminPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              basePath="/admin/products"
+              searchParams={{
+                q: keyword,
+                categoryId,
+                activeStatus,
+                featuredStatus,
+                hotStatus,
+              }}
+            />
+          </div>
+        </section>
+      </div>
     </AdminLayout>
   );
 }

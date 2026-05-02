@@ -15,7 +15,9 @@ export function PromotionNewForm() {
 
   const [form, setForm] = useState({
     title: "",
+    titleEn: "",
     description: "",
+    descriptionEn: "",
     discountType: "percent",
     discountValue: "",
     startAt: "",
@@ -61,6 +63,16 @@ export function PromotionNewForm() {
             onChange={handleChange}
             placeholder="例如：春季出口产品促销"
             required
+          />
+        </label>
+
+        <label>
+          英文促销名称（可选）
+          <input
+            name="titleEn"
+            value={form.titleEn}
+           onChange={handleChange}
+            placeholder="For example: Summer Sale"
           />
         </label>
 
@@ -123,6 +135,16 @@ export function PromotionNewForm() {
           />
         </label>
       </div>
+
+      <label>
+        英文促销说明（可选）
+        <textarea
+          name="descriptionEn"
+          value={form.descriptionEn}
+          onChange={handleChange}
+          placeholder="Displayed on the English product detail page."
+        />
+      </label>
 
       <div className="promotion-form-actions">
         <Link href="/admin/promotions" className="admin-reset-link">

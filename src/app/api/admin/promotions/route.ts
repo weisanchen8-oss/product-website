@@ -30,7 +30,9 @@ export async function POST(req: Request) {
   const promotion = await prisma.promotion.create({
     data: {
       title: body.title,
+      titleEn: String(body.titleEn || "").trim() || null,
       description: body.description,
+      descriptionEn: String(body.descriptionEn || "").trim() || null,
       discountType: body.discountType,
       discountValue: Number(body.discountValue),
       startAt: new Date(body.startAt),
@@ -63,7 +65,9 @@ export async function PATCH(req: Request) {
       where: { id: Number(promotionId) },
       data: {
         title: String(body.title || "").trim(),
+        titleEn: String(body.titleEn || "").trim() || null,
         description: String(body.description || "").trim(),
+        descriptionEn: String(body.descriptionEn || "").trim() || null,
         discountType: body.discountType,
         discountValue: Number(body.discountValue),
         startAt: new Date(body.startAt),

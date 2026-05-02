@@ -13,9 +13,8 @@ import { logoutUserAction } from "@/app/logout/actions";
 import {
   FrontendLocale,
   getFrontendPath,
-  getOppositeLocale,
-  getLocaleLabel,
 } from "@/lib/frontend-i18n";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 
 type SiteHeaderProps = {
   locale?: FrontendLocale;
@@ -23,7 +22,6 @@ type SiteHeaderProps = {
 
 export async function SiteHeader({ locale = "zh" }: SiteHeaderProps) {
   const currentUser = await getCurrentUser();
-  const targetLocale = getOppositeLocale(locale);
 
   const text = {
     logo: locale === "en" ? "Company Logo" : "公司 Logo",
@@ -84,9 +82,7 @@ export async function SiteHeader({ locale = "zh" }: SiteHeaderProps) {
             </Link>
           )}
 
-          <Link href={getFrontendPath(targetLocale)} className="ghost-button">
-            {getLocaleLabel(targetLocale)}
-          </Link>
+          <LanguageSwitcher locale={locale} />
         </div>
       </div>
     </header>

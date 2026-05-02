@@ -6,10 +6,37 @@
  * - 单个产品详情
  * - 相关推荐
  * - 产品搜索结果
+ * - 产品/分类中英文内容字段
  * - 产品关联的促销活动
  */
 
 import { prisma } from "@/lib/prisma";
+
+const productInclude = {
+  images: {
+    where: { isCover: true },
+    orderBy: { sortOrder: "asc" as const },
+    take: 1,
+  },
+  category: {
+    select: {
+      id: true,
+      name: true,
+      nameEn: true,
+      slug: true,
+      description: true,
+      descriptionEn: true,
+      imageUrl: true,
+      isActive: true,
+      sortOrder: true,
+    },
+  },
+  promotionProducts: {
+    include: {
+      promotion: true,
+    },
+  },
+};
 
 export async function getProductsPageData() {
   const [products, categories] = await Promise.all([
@@ -18,23 +45,23 @@ export async function getProductsPageData() {
         isActive: true,
       },
       orderBy: [{ createdAt: "desc" }],
-      include: {
-        images: {
-          where: { isCover: true },
-          orderBy: { sortOrder: "asc" },
-          take: 1,
-        },
-        category: true,
-        promotionProducts: {
-          include: {
-            promotion: true,
-          },
-        },
-      },
+      include: productInclude,
     }),
+
     prisma.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        nameEn: true,
+        slug: true,
+        description: true,
+        descriptionEn: true,
+        imageUrl: true,
+        isActive: true,
+        sortOrder: true,
+      },
     }),
   ]);
 
@@ -51,7 +78,19 @@ export async function getProductDetailBySlug(slug: string) {
       images: {
         orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
       },
-      category: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          nameEn: true,
+          slug: true,
+          description: true,
+          descriptionEn: true,
+          imageUrl: true,
+          isActive: true,
+          sortOrder: true,
+        },
+      },
       promotionProducts: {
         include: {
           promotion: true,
@@ -73,18 +112,7 @@ export async function getProductDetailBySlug(slug: string) {
       },
     },
     orderBy: [{ createdAt: "desc" }],
-    include: {
-      images: {
-        where: { isCover: true },
-        orderBy: { sortOrder: "asc" },
-        take: 1,
-      },
-      promotionProducts: {
-        include: {
-          promotion: true,
-        },
-      },
-    },
+    include: productInclude,
     take: 3,
   });
 
@@ -111,6 +139,11 @@ export async function searchProducts(keyword: string) {
           },
         },
         {
+          nameEn: {
+            contains: trimmedKeyword,
+          },
+        },
+        {
           keywords: {
             contains: trimmedKeyword,
           },
@@ -120,22 +153,15 @@ export async function searchProducts(keyword: string) {
             contains: trimmedKeyword,
           },
         },
+        {
+          shortDescEn: {
+            contains: trimmedKeyword,
+          },
+        },
       ],
     },
     orderBy: [{ createdAt: "desc" }],
-    include: {
-      images: {
-        where: { isCover: true },
-        orderBy: { sortOrder: "asc" },
-        take: 1,
-      },
-      category: true,
-      promotionProducts: {
-        include: {
-          promotion: true,
-        },
-      },
-    },
+    include: productInclude,
   });
 
   return products;

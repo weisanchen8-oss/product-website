@@ -15,6 +15,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { getProductsPageData } from "@/lib/product-data";
 import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
 import { getLocalizedText } from "@/lib/localized-content";
+import { formatLocalizedPrice } from "@/lib/currency";
 
 function getPromotionDiscountScore(promotion: {
   discountType: string;
@@ -140,6 +141,8 @@ export default async function LocaleProductsPage({
                     product.category.nameEn
                   );
 
+                  const displayPrice = formatLocalizedPrice(locale, product.priceText);
+
                   return (
                     <article key={product.id} className="product-list-card">
                       <Link
@@ -194,7 +197,7 @@ export default async function LocaleProductsPage({
                         </div>
 
                         <div className="product-card-footer">
-                          <span>{product.priceText}</span>
+                          <span>{displayPrice}</span>
 
                           <Link
                             href={getFrontendPath(
