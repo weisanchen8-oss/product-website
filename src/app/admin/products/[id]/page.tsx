@@ -149,6 +149,7 @@ export default async function AdminProductEditPage({
 
   const errorMessage = getErrorMessage(error);
   const specEntries = parseSpecsForForm(product.specsJson);
+  const specEntriesEn = parseSpecsForForm(product.specsJsonEn);
 
   return (
     <AdminLayout>
@@ -316,7 +317,10 @@ export default async function AdminProductEditPage({
             <input type="text" name="priceText" defaultValue={product.priceText} />
           </label>
 
-          <ProductSpecsEditor initialSpecs={specEntries} />
+          <ProductSpecsEditor
+            initialSpecs={specEntries}
+            initialSpecsEn={specEntriesEn}
+          />
 
           <label className="form-field">
             <span>销量数</span>

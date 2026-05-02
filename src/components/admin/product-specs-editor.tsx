@@ -1,7 +1,10 @@
 /**
  * 文件作用：
  * 定义后台产品参数动态编辑组件。
- * 支持员工自由添加、删除任意数量的产品参数行。
+ * 支持：
+ * - 中文产品参数 specsJson
+ * - 英文产品参数 specsJsonEn
+ * - 员工自由添加、删除任意数量的参数行
  */
 
 "use client";
@@ -15,35 +18,65 @@ type ProductSpecItem = {
 
 type ProductSpecsEditorProps = {
   initialSpecs?: ProductSpecItem[];
+  initialSpecsEn?: ProductSpecItem[];
 };
+
+function createDefaultSpecs(initialSpecs: ProductSpecItem[]) {
+  return initialSpecs.length > 0 ? initialSpecs : [{ key: "", value: "" }];
+}
 
 export function ProductSpecsEditor({
   initialSpecs = [],
+  initialSpecsEn = [],
 }: ProductSpecsEditorProps) {
   const [specs, setSpecs] = useState<ProductSpecItem[]>(
-    initialSpecs.length > 0 ? initialSpecs : [{ key: "", value: "" }]
+    createDefaultSpecs(initialSpecs)
   );
 
-  function updateSpec(index: number, field: keyof ProductSpecItem, value: string) {
-    setSpecs((currentSpecs) =>
+  const [specsEn, setSpecsEn] = useState<ProductSpecItem[]>(
+    createDefaultSpecs(initialSpecsEn)
+  );
+
+  function updateSpec(
+    listType: "zh" | "en",
+    index: number,
+    field: keyof ProductSpecItem,
+    value: string
+  ) {
+    const updater = (currentSpecs: ProductSpecItem[]) =>
       currentSpecs.map((item, itemIndex) =>
         itemIndex === index ? { ...item, [field]: value } : item
-      )
-    );
+      );
+
+    if (listType === "zh") {
+      setSpecs(updater);
+    } else {
+      setSpecsEn(updater);
+    }
   }
 
-  function addSpec() {
-    setSpecs((currentSpecs) => [...currentSpecs, { key: "", value: "" }]);
+  function addSpec(listType: "zh" | "en") {
+    if (listType === "zh") {
+      setSpecs((currentSpecs) => [...currentSpecs, { key: "", value: "" }]);
+    } else {
+      setSpecsEn((currentSpecs) => [...currentSpecs, { key: "", value: "" }]);
+    }
   }
 
-  function removeSpec(index: number) {
-    setSpecs((currentSpecs) => {
+  function removeSpec(listType: "zh" | "en", index: number) {
+    const remover = (currentSpecs: ProductSpecItem[]) => {
       if (currentSpecs.length <= 1) {
         return [{ key: "", value: "" }];
       }
 
       return currentSpecs.filter((_, itemIndex) => itemIndex !== index);
-    });
+    };
+
+    if (listType === "zh") {
+      setSpecs(remover);
+    } else {
+      setSpecsEn(remover);
+    }
   }
 
   return (
@@ -53,16 +86,20 @@ export function ProductSpecsEditor({
         可自由添加或删除参数，例如型号、规格、材质、适用场景等。未填写完整的参数行不会保存。
       </p>
 
+      <h3>中文参数</h3>
+
       <div className="dynamic-spec-list">
         {specs.map((spec, index) => (
-          <div key={index} className="dynamic-spec-row">
+          <div key={`zh-${index}`} className="dynamic-spec-row">
             <label className="form-field">
               <span>参数名</span>
               <input
                 type="text"
                 name="specKey"
                 value={spec.key}
-                onChange={(event) => updateSpec(index, "key", event.target.value)}
+                onChange={(event) =>
+                  updateSpec("zh", index, "key", event.target.value)
+                }
                 placeholder="例如：型号"
               />
             </label>
@@ -73,7 +110,9 @@ export function ProductSpecsEditor({
                 type="text"
                 name="specValue"
                 value={spec.value}
-                onChange={(event) => updateSpec(index, "value", event.target.value)}
+                onChange={(event) =>
+                  updateSpec("zh", index, "value", event.target.value)
+                }
                 placeholder="例如：A-100"
               />
             </label>
@@ -81,7 +120,7 @@ export function ProductSpecsEditor({
             <button
               type="button"
               className="ghost-button spec-remove-button"
-              onClick={() => removeSpec(index)}
+              onClick={() => removeSpec("zh", index)}
             >
               删除
             </button>
@@ -89,8 +128,59 @@ export function ProductSpecsEditor({
         ))}
       </div>
 
-      <button type="button" className="ghost-button" onClick={addSpec}>
-        添加参数
+      <button type="button" className="ghost-button" onClick={() => addSpec("zh")}>
+        添加中文参数
+      </button>
+
+      <hr className="admin-section-divider" />
+
+      <h3>英文参数</h3>
+      <p className="admin-section-help">
+        用于英文产品详情页展示；如果不填写，英文页面将回退显示中文参数。
+      </p>
+
+      <div className="dynamic-spec-list">
+        {specsEn.map((spec, index) => (
+          <div key={`en-${index}`} className="dynamic-spec-row">
+            <label className="form-field">
+              <span>英文参数名</span>
+              <input
+                type="text"
+                name="specKeyEn"
+                value={spec.key}
+                onChange={(event) =>
+                  updateSpec("en", index, "key", event.target.value)
+                }
+                placeholder="Example: Model"
+              />
+            </label>
+
+            <label className="form-field">
+              <span>英文参数值</span>
+              <input
+                type="text"
+                name="specValueEn"
+                value={spec.value}
+                onChange={(event) =>
+                  updateSpec("en", index, "value", event.target.value)
+                }
+                placeholder="Example: A-100"
+              />
+            </label>
+
+            <button
+              type="button"
+              className="ghost-button spec-remove-button"
+              onClick={() => removeSpec("en", index)}
+            >
+              删除
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" className="ghost-button" onClick={() => addSpec("en")}>
+        添加英文参数
       </button>
     </div>
   );

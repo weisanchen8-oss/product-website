@@ -1,14 +1,17 @@
 /**
  * 文件作用：
  * 定义产品详情页图片画廊组件。
- * 支持点击缩略图切换主图。
- * 当前版本修复 hydration 报错，避免服务端和客户端渲染结构不一致。
+ * 支持：
+ * - 点击缩略图切换主图
+ * - 图片为空时根据 locale 显示中文 / 英文提示
+ * - 避免服务端和客户端渲染结构不一致
  */
 
 "use client";
 
 import Image from "next/image";
 import { useState } from "react";
+import type { FrontendLocale } from "@/lib/frontend-i18n";
 
 type ProductGalleryImage = {
   id: number;
@@ -18,13 +21,19 @@ type ProductGalleryImage = {
 
 type ProductGalleryProps = {
   images: ProductGalleryImage[];
+  locale?: FrontendLocale;
 };
 
-export function ProductGallery({ images }: ProductGalleryProps) {
+export function ProductGallery({ images, locale = "zh" }: ProductGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const isEn = locale === "en";
 
   if (images.length === 0) {
-    return <div className="product-image-placeholder">暂无图片</div>;
+    return (
+      <div className="product-image-placeholder">
+        {isEn ? "No image" : "暂无图片"}
+      </div>
+    );
   }
 
   const activeImage = images[activeIndex] ?? images[0];

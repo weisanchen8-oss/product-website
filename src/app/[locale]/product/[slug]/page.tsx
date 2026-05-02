@@ -47,7 +47,9 @@ function getBestActivePromotion(
   promotionProducts: {
     promotion: {
       title: string;
+      titleEn: string | null;
       description: string | null;
+      descriptionEn: string | null;
       discountType: string;
       discountValue: number;
       isActive: boolean;
@@ -134,6 +136,17 @@ export default async function LocaleProductDetailPage({
 
   const specs = parseSpecs(product.specsJson);
   const bestPromotion = getBestActivePromotion(product.promotionProducts);
+  const promotionTitle = bestPromotion
+    ? getLocalizedText(locale, bestPromotion.title, bestPromotion.titleEn)
+    : "";
+
+  const promotionDescription = bestPromotion
+    ? getLocalizedText(
+        locale,
+        bestPromotion.description,
+        bestPromotion.descriptionEn
+      )
+    : "";
 
   const galleryImages = product.images.map((image) => ({
     id: image.id,
@@ -156,7 +169,7 @@ export default async function LocaleProductDetailPage({
 
         <section className="section">
           <div className="container product-detail-layout">
-            <ProductGallery images={galleryImages} />
+            <ProductGallery images={galleryImages} locale={locale} />
 
             <div className="product-detail-panel">
               {bestPromotion ? (
@@ -165,13 +178,11 @@ export default async function LocaleProductDetailPage({
                     {isEn ? "Limited-time Sale" : "限时促销"}
                   </span>
 
-                  <h3>{bestPromotion.title}</h3>
+                  <h3>{promotionTitle}</h3>
 
                   <p>
                     {getPromotionText(bestPromotion, isEn)}
-                    {bestPromotion.description
-                      ? ` · ${bestPromotion.description}`
-                      : ""}
+                    {promotionDescription ? ` · ${promotionDescription}` : ""}
                   </p>
 
                   <small>

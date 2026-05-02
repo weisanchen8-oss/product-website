@@ -142,6 +142,29 @@ function buildSpecsJsonFromFormData(formData: FormData) {
   return JSON.stringify(specs);
 }
 
+function buildSpecsJsonEnFromFormData(formData: FormData) {
+  const keys = formData.getAll("specKeyEn");
+  const values = formData.getAll("specValueEn");
+  const specs: Record<string, string> = {};
+
+  keys.forEach((keyItem, index) => {
+    const valueItem = values[index];
+
+    const key = typeof keyItem === "string" ? keyItem.trim() : "";
+    const value = typeof valueItem === "string" ? valueItem.trim() : "";
+
+    if (key && value) {
+      specs[key] = value;
+    }
+  });
+
+  if (Object.keys(specs).length === 0) {
+    return null;
+  }
+
+  return JSON.stringify(specs);
+}
+
 async function getProductPayload(formData: FormData, currentId?: number) {
   const name = String(formData.get("name") ?? "").trim();
   const slugRaw = String(formData.get("slug") ?? "").trim();
@@ -155,6 +178,7 @@ async function getProductPayload(formData: FormData, currentId?: number) {
   const isFeatured = formData.get("isFeatured") === "on";
   const isManualHot = formData.get("isManualHot") === "on";
   const specsJson = buildSpecsJsonFromFormData(formData);
+  const specsJsonEn = buildSpecsJsonEnFromFormData(formData);
   const nameEn = String(formData.get("nameEn") ?? "").trim();
   const shortDescEn = String(formData.get("shortDescEn") ?? "").trim();
   const fullDescEn = String(formData.get("fullDescEn") ?? "").trim();
@@ -190,6 +214,7 @@ async function getProductPayload(formData: FormData, currentId?: number) {
     keywords,
     priceText,
     specsJson,
+    specsJsonEn,
     salesCount,
     isActive,
     isFeatured,
@@ -308,6 +333,7 @@ function getProductSnapshot(product: {
   keywords: string | null;
   priceText: string;
   specsJson: string | null;
+  specsJsonEn?: string | null;
   salesCount: number;
   isActive: boolean;
   isFeatured: boolean;
@@ -325,6 +351,7 @@ function getProductSnapshot(product: {
     keywords: product.keywords,
     priceText: product.priceText,
     specsJson: product.specsJson ?? "",
+    specsJsonEn: product.specsJsonEn ?? "",
     salesCount: product.salesCount,
     isActive: product.isActive,
     isFeatured: product.isFeatured,
@@ -397,9 +424,10 @@ export async function createProductAction(formData: FormData) {
         images: createdImages.map(getImageSnapshot),
       },
     });
-  } catch {
-    redirect("/admin/products/new?error=create-failed");
-  }
+    } catch (error) {
+      console.error("新增产品保存失败：", error);
+      redirect("/admin/products/new?error=create-failed");
+    }
 
   revalidateProductPaths(payload.slug);
 
@@ -444,9 +472,10 @@ export async function updateProductAction(formData: FormData) {
       beforeData: getProductSnapshot(oldProduct),
       afterData: getProductSnapshot(product),
     });
-  } catch {
-    redirect(`/admin/products/${id}?error=update-failed`);
-  }
+    } catch (error) {
+      console.error("编辑产品保存失败：", error);
+      redirect(`/admin/products/${id}?error=update-failed`);
+    }
 
   revalidateProductPaths(payload.slug, id);
 

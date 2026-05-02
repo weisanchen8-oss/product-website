@@ -50,6 +50,7 @@ model Product {
   keywords  String?
   priceText String
   specsJson String?
+  specsJsonEn String?
   isActive  Boolean @default(true)
 
   isFeatured   Boolean @default(false)
