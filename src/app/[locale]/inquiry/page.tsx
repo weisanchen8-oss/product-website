@@ -31,7 +31,7 @@ export default async function LocaleInquiryPage({
 
       <main>
         <PageHero
-          eyebrow={isEn ? "Submit Inquiry" : "Inquiry"}
+          eyebrow={isEn ? "Inquiry" : "询单"}
           title={isEn ? "Submit Inquiry" : "提交询单"}
           description={
             isEn

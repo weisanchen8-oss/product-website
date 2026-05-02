@@ -46,27 +46,47 @@ export function FrontendInquiryForm({ locale }: { locale: FrontendLocale }) {
       <div className="form-grid">
         <label>
           {isEn ? "Contact Name" : "联系人姓名"} *
-          <input name="contactName" required />
+          <input
+            name="contactName"
+            required
+            placeholder={isEn ? "Your name" : "请输入联系人姓名"}
+          />
         </label>
 
         <label>
           {isEn ? "Company Name" : "公司名称"} *
-          <input name="companyName" required />
+          <input
+            name="companyName"
+            required
+            placeholder={isEn ? "Company name" : "请输入公司名称"}
+          />
         </label>
 
         <label>
           {isEn ? "Phone" : "联系电话"} *
-          <input name="phone" required />
+          <input
+            name="phone"
+            required
+            placeholder={isEn ? "Phone number" : "请输入联系电话"}
+          />
         </label>
 
         <label>
           {isEn ? "Email" : "邮箱"} *
-          <input name="email" type="email" required />
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder={isEn ? "Email address" : "请输入邮箱"}
+          />
         </label>
 
         <label>
           {isEn ? "Country / Region" : "国家 / 地区"}
-          <input name="region" />
+          <input
+            name="region"
+            placeholder={isEn ? "Country or region" : "请输入国家或地区"}
+          />
         </label>
       </div>
 

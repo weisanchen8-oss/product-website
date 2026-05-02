@@ -1,18 +1,23 @@
 /**
  * 文件作用：
  * 产品详情页“加入询单清单”组件。
- * 当前版本支持选择数量并加入 localStorage 询单清单，加入后停留在当前页面并显示提示。
+ * 支持：
+ * - 选择数量
+ * - 加入 localStorage 询单清单
+ * - 根据 locale 显示中文 / 英文按钮与提示
  */
 
 "use client";
 
 import { useState } from "react";
+import type { FrontendLocale } from "@/lib/frontend-i18n";
 
 type AddToInquiryButtonProps = {
   productId: number;
   productName: string;
   productSlug: string;
   priceText: string;
+  locale?: FrontendLocale;
 };
 
 type InquiryCartItem = {
@@ -30,9 +35,12 @@ export function AddToInquiryButton({
   productName,
   productSlug,
   priceText,
+  locale = "zh",
 }: AddToInquiryButtonProps) {
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
+
+  const isEn = locale === "en";
 
   function decreaseQuantity() {
     setQuantity((current) => Math.max(1, current - 1));
@@ -46,7 +54,9 @@ export function AddToInquiryButton({
     const rawValue = window.localStorage.getItem(STORAGE_KEY);
     const currentItems: InquiryCartItem[] = rawValue ? JSON.parse(rawValue) : [];
 
-    const existingItem = currentItems.find((item) => item.productId === productId);
+    const existingItem = currentItems.find(
+      (item) => item.productId === productId
+    );
 
     const nextItems = existingItem
       ? currentItems.map((item) =>
@@ -66,7 +76,12 @@ export function AddToInquiryButton({
         ];
 
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems));
-    setMessage("已加入询单清单，可在右上角“询单清单”中查看。");
+
+    setMessage(
+      isEn
+        ? "Added to inquiry cart. You can view it from the top-right Inquiry Cart."
+        : "已加入询单清单，可在右上角“询单清单”中查看。"
+    );
 
     window.setTimeout(() => {
       setMessage("");
@@ -76,12 +91,15 @@ export function AddToInquiryButton({
   return (
     <div className="add-inquiry-box">
       <div className="product-quantity-row">
-        <span>数量：</span>
+        <span>{isEn ? "Quantity:" : "数量："}</span>
+
         <div className="quantity-box">
           <button type="button" onClick={decreaseQuantity}>
             -
           </button>
+
           <span>{quantity}</span>
+
           <button type="button" onClick={increaseQuantity}>
             +
           </button>
@@ -89,7 +107,7 @@ export function AddToInquiryButton({
       </div>
 
       <button type="button" className="primary-button" onClick={handleAddToCart}>
-        加入询单清单
+        {isEn ? "Add to Inquiry Cart" : "加入询单清单"}
       </button>
 
       {message ? <p className="add-inquiry-message">{message}</p> : null}

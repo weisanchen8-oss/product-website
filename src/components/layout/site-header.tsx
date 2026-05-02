@@ -1,17 +1,20 @@
 /**
  * 文件作用：
  * 定义前台网站公共顶部导航栏。
- * 当前支持：
- * - 根据 locale 显示中文/英文前台导航文案
- * - 根据 cookie 登录状态展示用户入口、我的询单和退出登录
- * - 后台 /admin 不使用该组件
+ * 支持：
+ * - 根据当前语言生成前台链接
+ * - 中英文语言切换
+ * - 登录 / 我的询单 / 退出登录入口
+ * 
+ * 注意：
+ * 后台 /admin 不使用该组件。
  */
 
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutUserAction } from "@/app/logout/actions";
 import {
-  FrontendLocale,
+  type FrontendLocale,
   getFrontendPath,
 } from "@/lib/frontend-i18n";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
@@ -22,67 +25,89 @@ type SiteHeaderProps = {
 
 export async function SiteHeader({ locale = "zh" }: SiteHeaderProps) {
   const currentUser = await getCurrentUser();
-
-  const text = {
-    logo: locale === "en" ? "Company Logo" : "公司 Logo",
-    home: locale === "en" ? "Home" : "首页",
-    products: locale === "en" ? "Products" : "产品中心",
-    company: locale === "en" ? "Company" : "公司介绍",
-    contact: locale === "en" ? "Contact" : "联系我们",
-    searchPlaceholder:
-      locale === "en" ? "Search product name or keyword" : "搜索产品名称或关键词",
-    search: locale === "en" ? "Search" : "搜索",
-    inquiryCart: locale === "en" ? "Inquiry List" : "询单清单",
-    myInquiry: locale === "en" ? "My Inquiries" : "我的询单",
-    login: locale === "en" ? "Login" : "登录",
-    logout: locale === "en" ? "Logout" : "退出登录",
-  };
+  const isEn = locale === "en";
 
   return (
-    <header className="site-header">
-      <div className="container header-inner">
-        <Link href={getFrontendPath(locale)} className="site-logo">
-          {text.logo}
+    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <Link
+          href={getFrontendPath(locale)}
+          className="text-lg font-bold text-slate-900"
+        >
+          {isEn ? "B2B Product Platform" : "公司 Logo"}
         </Link>
 
-        <nav className="site-nav">
-          <Link href={getFrontendPath(locale)}>{text.home}</Link>
-          <Link href={getFrontendPath(locale, "/products")}>{text.products}</Link>
-          <Link href={getFrontendPath(locale, "/company")}>{text.company}</Link>
-          <Link href={getFrontendPath(locale, "/contact")}>{text.contact}</Link>
+        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
+          <Link href={getFrontendPath(locale)} className="hover:text-blue-600">
+            {isEn ? "Home" : "首页"}
+          </Link>
+
+          <Link
+            href={getFrontendPath(locale, "/products")}
+            className="hover:text-blue-600"
+          >
+            {isEn ? "Products" : "产品中心"}
+          </Link>
+
+          <Link
+            href={getFrontendPath(locale, "/company")}
+            className="hover:text-blue-600"
+          >
+            {isEn ? "Company" : "公司介绍"}
+          </Link>
+
+          <Link
+            href={getFrontendPath(locale, "/contact")}
+            className="hover:text-blue-600"
+          >
+            {isEn ? "Contact" : "联系我们"}
+          </Link>
         </nav>
 
-        <form className="header-search" action={getFrontendPath(locale, "/search")}>
-          <input name="q" placeholder={text.searchPlaceholder} />
-          <button type="submit">{text.search}</button>
-        </form>
-
-        <div className="header-actions">
-          <Link href={getFrontendPath(locale, "/inquiry-cart")} className="primary-button">
-            {text.inquiryCart}
+        <div className="flex items-center gap-3 text-sm">
+          <Link
+            href={getFrontendPath(locale, "/search")}
+            className="rounded-full border border-slate-200 px-4 py-2 text-slate-700 hover:border-blue-300 hover:text-blue-600"
+          >
+            {isEn ? "Search" : "搜索"}
           </Link>
+
+          <Link
+            href={getFrontendPath(locale, "/inquiry-cart")}
+            className="rounded-full bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
+          >
+            {isEn ? "Inquiry Cart" : "询单清单"}
+          </Link>
+
+          <LanguageSwitcher locale={locale} />
 
           {currentUser ? (
             <>
-              <Link href={getFrontendPath(locale, "/my-inquiries")} className="ghost-button">
-                {text.myInquiry}
+              <Link
+                href={getFrontendPath(locale, "/inquiry")}
+                className="hidden text-slate-600 hover:text-blue-600 md:inline"
+              >
+                {isEn ? "My Inquiries" : "我的询单"}
               </Link>
 
-              <span className="header-user-name">{currentUser.name}</span>
+              <span className="hidden text-slate-400 md:inline">
+                {currentUser.name}
+              </span>
 
               <form action={logoutUserAction}>
-                <button type="submit" className="ghost-button">
-                  {text.logout}
+                <button
+                  type="submit"
+                  className="text-slate-600 hover:text-red-600"
+                >
+                  {isEn ? "Logout" : "退出登录"}
                 </button>
               </form>
             </>
           ) : (
-            <Link href="/login" className="ghost-button">
-              {text.login}
+            <Link href="/login" className="text-slate-600 hover:text-blue-600">
+              {isEn ? "Login" : "登录"}
             </Link>
           )}
-
-          <LanguageSwitcher locale={locale} />
         </div>
       </div>
     </header>

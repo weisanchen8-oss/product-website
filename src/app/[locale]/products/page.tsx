@@ -1,8 +1,12 @@
 /**
  * 文件作用：
  * 前台多语言产品中心页。
- * 当前支持 /zh/products 和 /en/products。
- * 英文页面优先显示产品/分类英文字段，未填写时自动回退中文。
+ * 支持：
+ * - /zh/products 中文产品中心
+ * - /en/products 英文产品中心
+ * - 产品名称、简介、分类名称按语言显示
+ * - 价格按语言切换人民币 / 美元估算价
+ * - 促销标识中英文切换
  */
 
 import Image from "next/image";
@@ -13,7 +17,10 @@ import { PageHero } from "@/components/common/page-hero";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { getProductsPageData } from "@/lib/product-data";
-import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
+import {
+  getFrontendPath,
+  isFrontendLocale,
+} from "@/lib/frontend-i18n";
 import { getLocalizedText } from "@/lib/localized-content";
 import { formatLocalizedPrice } from "@/lib/currency";
 
@@ -71,155 +78,158 @@ export default async function LocaleProductsPage({
 
   const locale = localeParam;
   const isEn = locale === "en";
+
   const { products, categories } = await getProductsPageData();
 
   return (
-    <div className="site-shell">
+    <>
       <SiteHeader locale={locale} />
 
-      <main>
+      <main className="min-h-screen bg-slate-50">
         <PageHero
-          eyebrow={isEn ? "Products" : "Product Center"}
-          title={isEn ? "Product Center" : "产品中心"}
+          eyebrow={isEn ? "Product Center" : "产品中心"}
+          title={isEn ? "All Products" : "全部产品"}
           description={
             isEn
-              ? "Browse product categories, view product details, and quickly start an inquiry."
-              : "浏览产品分类，查看产品详情，并快速发起询单。"
+              ? "Browse products by category, view specifications, and quickly submit inquiries."
+              : "按分类浏览产品，查看规格信息，并快速提交询单。"
           }
         />
 
-        <section className="section">
-          <div className="container">
-            <div className="category-filter">
-              <Link href={getFrontendPath(locale, "/products")}>
-                {isEn ? "All Products" : "全部产品"}
-              </Link>
+        <section className="mx-auto max-w-7xl px-6 py-10">
+          <div className="mb-8 flex flex-wrap gap-3">
+            {categories.map((category) => {
+              const categoryName = getLocalizedText(
+                locale,
+                category.name,
+                category.nameEn
+              );
 
-              {categories.map((category) => (
+              return (
                 <Link
                   key={category.id}
-                  href={getFrontendPath(locale, "/products")}
+                  href={getFrontendPath(
+                    locale,
+                    `/products?categoryId=${category.id}`
+                  )}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600"
                 >
-                  {getLocalizedText(locale, category.name, category.nameEn)}
+                  {categoryName}
                 </Link>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
-            {products.length === 0 ? (
-              <EmptyStateCard
-                title={isEn ? "No products yet" : "暂无产品"}
-                description={
-                  isEn
-                    ? "Please add products in the admin panel first."
-                    : "请先在后台添加产品。"
-                }
-              />
-            ) : (
-              <div className="product-list-grid">
-                {products.map((product) => {
-                  const coverImage =
-                    product.images.find((image) => image.isCover) ??
-                    product.images[0];
+          {products.length === 0 ? (
+            <EmptyStateCard
+              title={isEn ? "No products yet" : "暂无产品"}
+              description={
+                isEn
+                  ? "Products will be displayed here after they are added in the admin panel."
+                  : "后台添加产品后，将会在这里展示。"
+              }
+            />
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product) => {
+                const coverImage =
+                  product.images.find((image) => image.isCover) ?? product.images[0];
 
-                  const bestPromotion = getBestActivePromotion(
-                    product.promotionProducts
-                  );
+                const coverImageUrl = coverImage?.watermarkedUrl ?? "";
 
-                  const productName = getLocalizedText(
-                    locale,
-                    product.name,
-                    product.nameEn
-                  );
-                  const productDesc = getLocalizedText(
-                    locale,
-                    product.shortDesc,
-                    product.shortDescEn
-                  );
-                  const categoryName = getLocalizedText(
-                    locale,
-                    product.category.name,
-                    product.category.nameEn
-                  );
+                const bestPromotion = getBestActivePromotion(
+                  product.promotionProducts
+                );
 
-                  const displayPrice = formatLocalizedPrice(locale, product.priceText);
+                const productName = getLocalizedText(
+                  locale,
+                  product.name,
+                  product.nameEn
+                );
 
-                  return (
-                    <article key={product.id} className="product-list-card">
-                      <Link
-                        href={getFrontendPath(
-                          locale,
-                          `/product/${product.slug}`
-                        )}
-                        className="product-list-image-wrap"
-                      >
+                const productDesc = getLocalizedText(
+                  locale,
+                  product.shortDesc,
+                  product.shortDescEn
+                );
+
+                const categoryName = getLocalizedText(
+                  locale,
+                  product.category.name,
+                  product.category.nameEn
+                );
+
+                const displayPrice = formatLocalizedPrice(
+                  locale,
+                  product.priceText
+                );
+
+                return (
+                  <article
+                    key={product.id}
+                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                  >
+                    <Link href={getFrontendPath(locale, `/product/${product.slug}`)}>
+                      <div className="relative aspect-[4/3] bg-slate-100">
                         {bestPromotion ? (
-                          <span className="promotion-corner-badge">
-                            {isEn ? "Sale" : "促销"}
+                          <span className="absolute left-4 top-4 z-10 rounded-full bg-orange-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                            {isEn ? "Sale" : "限时促销"}
                           </span>
                         ) : null}
 
-                        {coverImage ? (
+                        {coverImageUrl ? (
                           <Image
-                            src={
-                              coverImage.processedUrl ??
-                              coverImage.originalUrl
-                            }
+                            src={coverImageUrl}
                             alt={productName}
-                            width={360}
-                            height={260}
-                            className="product-list-image"
+                            fill
+                            className="object-cover transition duration-300 group-hover:scale-105"
                           />
                         ) : (
-                          <div className="product-image-placeholder">
+                          <div className="flex h-full items-center justify-center text-sm text-slate-400">
                             {isEn ? "No image" : "暂无图片"}
                           </div>
                         )}
-                      </Link>
+                      </div>
 
-                      <div className="product-list-body">
-                        <h3>
-                          <Link
-                            href={getFrontendPath(
-                              locale,
-                              `/product/${product.slug}`
-                            )}
-                            className="text-link"
-                          >
+                      <div className="space-y-3 p-5">
+                        <div>
+                          <h3 className="line-clamp-1 text-base font-semibold text-slate-900">
                             {productName}
-                          </Link>
-                        </h3>
+                          </h3>
 
-                        <p>{productDesc}</p>
-
-                        <div className="product-meta">
-                          {isEn ? "Category: " : "分类："}
-                          {categoryName}
+                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
+                            {productDesc ||
+                              (isEn
+                                ? "No product description yet."
+                                : "暂无产品简介。")}
+                          </p>
                         </div>
 
-                        <div className="product-card-footer">
-                          <span>{displayPrice}</span>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                            {isEn ? "Category: " : "分类："}
+                            {categoryName}
+                          </span>
 
-                          <Link
-                            href={getFrontendPath(
-                              locale,
-                              `/product/${product.slug}`
-                            )}
-                            className="ghost-button inline-button-link"
-                          >
-                            {isEn ? "View Details" : "查看详情"}
-                          </Link>
+                          <span className="font-semibold text-blue-600">
+                            {displayPrice}
+                          </span>
+                        </div>
+
+                        <div className="pt-2 text-sm font-medium text-blue-600">
+                          {isEn ? "View Details →" : "查看详情 →"}
                         </div>
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       </main>
 
-      <SiteFooter locale={locale} />
-    </div>
+      <SiteFooter />
+    </>
   );
 }

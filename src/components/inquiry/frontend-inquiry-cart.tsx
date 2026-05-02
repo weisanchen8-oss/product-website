@@ -116,6 +116,8 @@ export function FrontendInquiryCart({ locale }: FrontendInquiryCartProps) {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span className="muted-text">{isEn ? "Qty:" : "数量："}</span>
+              
               <button
                 type="button"
                 className="ghost-button"

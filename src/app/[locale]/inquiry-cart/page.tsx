@@ -31,7 +31,7 @@ export default async function LocaleInquiryCartPage({
 
       <main>
         <PageHero
-          eyebrow={isEn ? "Inquiry" : "Inquiry Cart"}
+          eyebrow={isEn ? "Inquiry Cart" : "询单"}
           title={isEn ? "Inquiry List" : "询单清单"}
           description={
             isEn

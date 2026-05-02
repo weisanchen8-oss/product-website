@@ -5,6 +5,7 @@
  * 英文页面优先显示产品/分类英文字段，未填写时自动回退中文。
  */
 
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHero } from "@/components/common/page-hero";
@@ -203,6 +204,7 @@ export default async function LocaleProductDetailPage({
                 productName={productName}
                 productSlug={product.slug}
                 priceText={displayPrice}
+                locale={locale}
               />
 
               <Link
@@ -261,7 +263,7 @@ export default async function LocaleProductDetailPage({
           <div className="container">
             <div className="section-heading-row">
               <div>
-                <p className="eyebrow">Related Products</p>
+                <p className="eyebrow">{isEn ? "Related Products" : "相关推荐"}</p>
                 <h2>{isEn ? "Related Products" : "相关推荐"}</h2>
                 <p>
                   {isEn
@@ -292,14 +294,19 @@ export default async function LocaleProductDetailPage({
                       href={getFrontendPath(locale, `/product/${item.slug}`)}
                       className="product-image-link product-link-block"
                     >
-                      <div className="product-image-placeholder">
-                        {item.images[0]?.processedUrl
-                          ? isEn
-                            ? "Image"
-                            : "展示图"
-                          : isEn
-                            ? "Product Image"
-                            : "产品图"}
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl bg-slate-100">
+                        {item.images[0]?.processedUrl || item.images[0]?.originalUrl ? (
+                          <Image
+                            src={item.images[0]?.processedUrl ?? item.images[0]?.originalUrl ?? ""}
+                            alt={relatedName}
+                            fill
+                            className="object-cover transition duration-300 hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                            {isEn ? "No image" : "暂无图片"}
+                          </div>
+                        )}
                       </div>
                     </Link>
 
