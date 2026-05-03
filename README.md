@@ -1,36 +1,144 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧠 B2B Product Website（AI增强型企业产品展示与询单平台）
 
-## Getting Started
+一个面向外贸 / B2B 场景的产品展示网站，支持多语言、多产品管理、AI图片优化与询单流程管理，具备完整的后台运营能力。
 
-First, run the development server:
+👉 在线体验：
+https://product-website-v2.vercel.app
+
+（注意，体验链接中所有数据均为虚拟数据。
+❗️后台链接未开放，如有体验需要，请通过此邮箱联系我weisan_chen@163.com）
+---
+![alt text](image.png)
+![alt text](image-1.png)
+## 🚀 项目背景
+
+在传统外贸企业中，产品展示网站普遍存在以下问题：
+
+- 产品信息分散，维护成本高
+- 图片质量参差不齐，影响转化
+- 缺乏统一的询单管理流程
+- 多语言支持能力弱
+
+本项目从 **0 到 1 设计与实现**，目标是打造一个：
+
+> 「可运营、可扩展、具备AI能力」的企业级产品展示平台
+
+---
+
+## ✨ 核心功能
+
+### 🖥️ 前台（用户端）
+
+- 多语言支持（中文 / 英文）
+- 产品详情页（参数 / 图文 / 相关推荐）
+- 产品分类浏览 + 搜索
+- 询单系统（加入询单 → 提交需求）
+- 促销活动展示（自动计算最优优惠）
+- 响应式设计（适配PC / 移动端）
+
+---
+
+### 🛠️ 后台管理系统
+
+#### 📦 产品管理
+- 新增 / 编辑产品
+- 多图上传（支持封面图）
+- AI图片优化（自动抠图白底）
+- 图片水印（文字 / Logo）
+- 推荐 / 热销排序
+
+#### 🗂️ 分类管理
+- 多级分类
+- 图标上传
+- 排序与启用控制
+
+#### 🎯 促销系统
+- 设置折扣（百分比 / 固定值）
+- 绑定产品
+- 自动展示最优促销
+
+#### 📊 数据与运营
+- 批量管理（上架 / 下架 / 删除 / 加促销）
+- 操作日志（AdminLog）
+- 内容管理（首页模块配置）
+
+---
+
+### 🤖 AI能力（核心亮点）
+
+- 自动抠图（remove.bg）
+- 白底生成（统一产品视觉）
+- 图片水印（品牌统一）
+- 图片链路：上传 → AI处理 → 展示
+
+---
+
+## 🧱 技术架构
+
+### 前端
+- Next.js 16（App Router）
+- React
+- Tailwind CSS
+
+### 后端
+- Next.js Server Actions
+- Prisma ORM
+- PostgreSQL
+
+### 存储
+- Vercel Blob（图片存储）
+
+### AI能力
+- remove.bg API（抠图）
+- 自研图片处理逻辑（白底 + 水印）
+
+---
+
+## 📂 项目结构
+src/
+├── app/ # 页面路由
+│ ├── admin/ # 后台系统
+│ └── [locale]/ # 多语言前台
+├── components/ # UI组件
+├── lib/ # 工具函数 / 数据层
+├── styles/ # 样式系统
+
+
+---
+
+## ⚙️ 本地运行
 
 ```bash
+git clone xxx
+cd project
+
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问：http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+🔐 环境变量（重要）
+创建 .env.local
+DATABASE_URL=xxx
+ADMIN_EMAILS=xxx@gmail.com
+REMOVE_BG_API_KEY=你的remove.bg key
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+⚠️ 注意：
+.env.local 不会上传到 GitHub
 
-## Learn More
+🚀 部署
+使用 Vercel：
+git push
+自动部署完成
 
-To learn more about Next.js, take a look at the following resources:
+📈 项目亮点（面试可用）
+从 0 到 1 完整产品设计与实现
+前后台一体化系统（不仅是展示页）
+引入 AI 提升产品图片质量（真实业务价值）
+支持多语言与国际化（B2B核心能力）
+具备运营能力（促销 / 推荐 / 数据）
+工程结构清晰，具备扩展性
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+👤 作者
+sanwei（ccx）
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
