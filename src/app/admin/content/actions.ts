@@ -6,14 +6,14 @@
  * - 标题更新
  * - 正文更新
  * - 图片地址更新
- * - 本地图片上传更新
+ * - Vercel Blob 图片上传更新
  * - 附加 JSON 配置校验
  */
 
 "use server";
 
-import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -23,9 +23,7 @@ function normalizeTextValue(value: FormDataEntryValue | null) {
 }
 
 function isValidJsonText(value: string) {
-  if (!value) {
-    return true;
-  }
+  if (!value) return true;
 
   try {
     JSON.parse(value);
@@ -37,12 +35,7 @@ function isValidJsonText(value: string) {
 
 function getFileExtension(fileName: string) {
   const extension = path.extname(fileName).toLowerCase();
-
-  if (extension) {
-    return extension;
-  }
-
-  return ".jpg";
+  return extension || ".jpg";
 }
 
 async function saveUploadedContentImage(file: File) {
@@ -62,20 +55,17 @@ async function saveUploadedContentImage(file: File) {
     throw new Error("图片不能超过 5MB。");
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "content");
-  await mkdir(uploadDir, { recursive: true });
-
   const extension = getFileExtension(file.name);
-  const fileName = `content-${Date.now()}-${Math.random()
+  const fileName = `content/content-${Date.now()}-${Math.random()
     .toString(36)
     .slice(2)}${extension}`;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const blob = await put(fileName, file, {
+    access: "public",
+    contentType: file.type || "application/octet-stream",
+  });
 
-  await writeFile(path.join(uploadDir, fileName), buffer);
-
-  return `/uploads/content/${fileName}`;
+  return blob.url;
 }
 
 export async function updateSiteContentAction(formData: FormData) {
@@ -126,10 +116,12 @@ export async function updateSiteContentAction(formData: FormData) {
     },
   });
 
+  revalidatePath("/");
+  revalidatePath("/zh");
+  revalidatePath("/en");
   revalidatePath("/admin");
   revalidatePath("/admin/content");
   revalidatePath(`/admin/content/${id}`);
-  revalidatePath("/");
 
   redirect(`/admin/content/${id}?saved=1`);
 }

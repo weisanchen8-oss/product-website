@@ -989,7 +989,8 @@ export async function applyTextWatermarkToProductImageAction(formData: FormData)
 export async function applyTextWatermarkToSelectedProductImagesAction(
   formData: FormData
 ) {
-  await requireAdminAction(); // 🔒 权限校验
+  await requireAdminAction();
+
   const productId = Number(formData.get("productId"));
   const watermarkText = String(formData.get("watermarkText") ?? "").trim();
 
@@ -1030,31 +1031,22 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
       },
     });
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
     for (const image of images) {
       const sourceUrl =
         image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
 
-      const sourceFilePath = path.join(
-        process.cwd(),
-        "public",
-        sourceUrl.replace(/^\/+/, "")
-      );
-
-      await fs.access(sourceFilePath);
+      const sourceFilePath = await getImageSourceFilePath(sourceUrl);
 
       const watermarkedBuffer = await createTextWatermarkImage({
         inputFilePath: sourceFilePath,
         watermarkText,
       });
 
-      const watermarkedFileName = `${product.slug}-${Date.now()}-${image.id}-watermarked.png`;
-      const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
-      const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
-
-      await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+      const watermarkedPublicUrl = await uploadBufferToBlob({
+        buffer: watermarkedBuffer,
+        productSlug: product.slug,
+        label: `watermarked-${image.id}`,
+      });
 
       await prisma.productImage.update({
         where: { id: image.id },
@@ -1076,17 +1068,18 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
     redirect(`/admin/products/${productId}?error=watermark-failed`);
   }
 
-  redirect(`/admin/products/${productId}?success=watermark-applied&count=${processedCount}`);
+  redirect(
+    `/admin/products/${productId}?success=watermark-applied&count=${processedCount}`
+  );
 }
 
 export async function applyLogoWatermarkToProductImageAction(formData: FormData) {
-  await requireAdminAction(); // 🔒 权限校验
+  await requireAdminAction();
 
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
   const logoFileValue = formData.get("logoFile");
 
-  // 基础校验
   if (!productId || Number.isNaN(productId)) {
     throw new Error("无效的产品 ID。");
   }
@@ -1099,16 +1092,10 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
     redirect(`/admin/products/${productId}?error=missing-logo-file`);
   }
 
-  // 🔒 安全校验（核心新增）
-  const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
-  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const logoUploadError = getSingleImageUploadError(logoFileValue);
 
-  if (logoFileValue.size > MAX_IMAGE_SIZE) {
-    redirect(`/admin/products/${productId}?error=image-too-large`);
-  }
-
-  if (!ALLOWED_IMAGE_TYPES.includes(logoFileValue.type)) {
-    redirect(`/admin/products/${productId}?error=invalid-image-type`);
+  if (logoUploadError) {
+    redirect(`/admin/products/${productId}?error=${logoUploadError}`);
   }
 
   const image = await prisma.productImage.findUnique({
@@ -1123,43 +1110,20 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
   const sourceUrl =
     image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
 
-  const sourceFilePath = path.join(
-    process.cwd(),
-    "public",
-    sourceUrl.replace(/^\/+/, "")
-  );
-
   try {
-    await fs.access(sourceFilePath);
-
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    // 🔒 使用安全扩展名（不信任原文件名）
-    const EXTENSION_MAP: Record<string, string> = {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/webp": "webp",
-    };
-
-    const safeExt = EXTENSION_MAP[logoFileValue.type] ?? "png";
-
-    const logoFileName = `${image.product.slug}-${Date.now()}-logo.${safeExt}`;
-    const logoFilePath = path.join(uploadDir, logoFileName);
-
-    const logoArrayBuffer = await logoFileValue.arrayBuffer();
-    await fs.writeFile(logoFilePath, Buffer.from(logoArrayBuffer));
+    const sourceFilePath = await getImageSourceFilePath(sourceUrl);
+    const logoFilePath = await writeUploadedFileToTempFile(logoFileValue);
 
     const watermarkedBuffer = await createLogoWatermarkImage({
       inputFilePath: sourceFilePath,
       logoFilePath,
     });
 
-    const watermarkedFileName = `${image.product.slug}-${Date.now()}-logo-watermarked.png`;
-    const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
-    const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
-
-    await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+    const watermarkedPublicUrl = await uploadBufferToBlob({
+      buffer: watermarkedBuffer,
+      productSlug: image.product.slug,
+      label: "logo-watermarked",
+    });
 
     const updatedImage = await prisma.productImage.update({
       where: { id: imageId },
@@ -1200,7 +1164,8 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
 export async function applyLogoWatermarkToSelectedProductImagesAction(
   formData: FormData
 ) {
-  await requireAdminAction(); // 🔒 权限校验
+  await requireAdminAction();
+
   const productId = Number(formData.get("productId"));
   const logoFileValue = formData.get("logoFile");
 
@@ -1245,38 +1210,24 @@ export async function applyLogoWatermarkToSelectedProductImagesAction(
       },
     });
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const logoExtension = logoFileValue.name.split(".").pop() || "png";
-    const logoFileName = `${product.slug}-${Date.now()}-batch-logo.${logoExtension}`;
-    const logoFilePath = path.join(uploadDir, logoFileName);
-
-    const logoArrayBuffer = await logoFileValue.arrayBuffer();
-    await fs.writeFile(logoFilePath, Buffer.from(logoArrayBuffer));
+    const logoFilePath = await writeUploadedFileToTempFile(logoFileValue);
 
     for (const image of images) {
       const sourceUrl =
         image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
 
-      const sourceFilePath = path.join(
-        process.cwd(),
-        "public",
-        sourceUrl.replace(/^\/+/, "")
-      );
-
-      await fs.access(sourceFilePath);
+      const sourceFilePath = await getImageSourceFilePath(sourceUrl);
 
       const watermarkedBuffer = await createLogoWatermarkImage({
         inputFilePath: sourceFilePath,
         logoFilePath,
       });
 
-      const watermarkedFileName = `${product.slug}-${Date.now()}-${image.id}-logo-watermarked.png`;
-      const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
-      const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
-
-      await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+      const watermarkedPublicUrl = await uploadBufferToBlob({
+        buffer: watermarkedBuffer,
+        productSlug: product.slug,
+        label: `logo-watermarked-${image.id}`,
+      });
 
       await prisma.productImage.update({
         where: { id: image.id },
@@ -1298,7 +1249,9 @@ export async function applyLogoWatermarkToSelectedProductImagesAction(
     redirect(`/admin/products/${productId}?error=logo-watermark-failed`);
   }
 
-  redirect(`/admin/products/${productId}?success=logo-watermark-applied&count=${processedCount}`);
+  redirect(
+    `/admin/products/${productId}?success=logo-watermark-applied&count=${processedCount}`
+  );
 }
 
 export async function setProductCoverImageAction(formData: FormData) {
