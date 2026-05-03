@@ -4,10 +4,17 @@
  * 当前阶段写入分类、产品和站点内容，供前台首页和产品中心读取。
  */
 
-import { PrismaClient } from "@prisma/client";
 import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function main() {
   await prisma.inquiryLog.deleteMany();
@@ -206,8 +213,8 @@ async function main() {
     await prisma.productImage.create({
       data: {
         productId: product.id,
-        originalUrl: `/demo-images/${product.slug}.png`,
-        processedUrl: `/demo-images/${product.slug}-processed.png`,
+        originalUrl: `/uploads/products/${product.slug}.png`,
+        processedUrl: `/uploads/products/${product.slug}-processed.png`,
         isProcessed: true,
         processingStatus: "success",
         logoApplied: true,

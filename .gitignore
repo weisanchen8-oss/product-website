@@ -47,3 +47,4 @@ next-env.d.ts
 dev.db
 public/uploads/products/*
 !public/uploads/products/.gitkeep
+.vercel
