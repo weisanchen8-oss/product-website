@@ -25,6 +25,7 @@ import { SubmitButton } from "@/components/admin/submit-button";
 import { ImageSelectToolbar } from "@/components/admin/image-select-toolbar";
 import { ConfirmSubmitActionButton } from "@/components/admin/confirm-submit-action-button";
 import { LogoImageUploadField } from "@/components/admin/logo-image-upload-field";
+import { AdminImagePreviewModal } from "@/components/admin/admin-image-preview-modal";
 
 type AdminProductEditPageProps = {
   params: Promise<{
@@ -477,12 +478,10 @@ export default async function AdminProductEditPage({
                     <span>选择</span>
                   </label>
 
-                  <Image
+                  <AdminImagePreviewModal
                     src={displayUrl}
                     alt={product.name}
-                    width={120}
-                    height={90}
-                    className="admin-image-preview"
+                    thumbClassName="admin-image-preview"
                   />
 
                   <div className="admin-image-info">

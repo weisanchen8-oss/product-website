@@ -12,12 +12,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { ProductGallery } from "@/components/product/product-gallery";
 import { AddToInquiryButton } from "@/components/inquiry/add-to-inquiry-button";
 import { getProductDetailBySlug } from "@/lib/product-data";
 import { getFrontendPath, isFrontendLocale } from "@/lib/frontend-i18n";
 import { getLocalizedText } from "@/lib/localized-content";
 import { formatLocalizedPrice } from "@/lib/currency";
+import { ProductGallery } from "@/components/product/product-gallery";
 
 type ProductDetailPageProps = {
   params: Promise<{
