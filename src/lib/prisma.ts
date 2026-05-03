@@ -1,10 +1,10 @@
 /**
  * 文件作用：
  * 提供 Prisma Client 单例。
- * 当前使用 Prisma 7 + SQLite + better-sqlite3 adapter。
+ * 当前上线版本使用 Prisma 7 + PostgreSQL + pg adapter。
  */
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as typeof globalThis & {
@@ -12,8 +12,8 @@ const globalForPrisma = globalThis as typeof globalThis & {
 };
 
 function createPrismaClient() {
-  const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL!,
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL!,
   });
 
   return new PrismaClient({
