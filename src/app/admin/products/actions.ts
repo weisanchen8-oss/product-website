@@ -252,6 +252,21 @@ function getUpdateErrorRedirect(id: number, error: unknown) {
   return `/admin/products/${id}?error=update-failed`;
 }
 
+function getSingleImageUploadError(file: File) {
+  const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    return "image-too-large";
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return "invalid-image-type";
+  }
+
+  return null;
+}
+
 function getProductImageUploadError(files: File[]) {
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -562,8 +577,10 @@ export async function uploadProductImageAction(formData: FormData) {
     redirect(`/admin/products/${productId}?error=missing-image`);
   }
 
-  if (!fileValue.type.startsWith("image/")) {
-    redirect(`/admin/products/${productId}?error=invalid-image-type`);
+  const imageUploadError = getSingleImageUploadError(fileValue);
+
+  if (imageUploadError) {
+    redirect(`/admin/products/${productId}?error=${imageUploadError}`);
   }
 
   const product = await prisma.product.findUnique({
@@ -965,10 +982,12 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
 
 export async function applyLogoWatermarkToProductImageAction(formData: FormData) {
   await requireAdminAction(); // 🔒 权限校验
+
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
   const logoFileValue = formData.get("logoFile");
 
+  // 基础校验
   if (!productId || Number.isNaN(productId)) {
     throw new Error("无效的产品 ID。");
   }
@@ -981,8 +1000,16 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
     redirect(`/admin/products/${productId}?error=missing-logo-file`);
   }
 
-  if (!logoFileValue.type.startsWith("image/")) {
-    redirect(`/admin/products/${productId}?error=invalid-logo-file`);
+  // 🔒 安全校验（核心新增）
+  const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  if (logoFileValue.size > MAX_IMAGE_SIZE) {
+    redirect(`/admin/products/${productId}?error=image-too-large`);
+  }
+
+  if (!ALLOWED_IMAGE_TYPES.includes(logoFileValue.type)) {
+    redirect(`/admin/products/${productId}?error=invalid-image-type`);
   }
 
   const image = await prisma.productImage.findUnique({
@@ -1009,8 +1036,16 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
     const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
     await fs.mkdir(uploadDir, { recursive: true });
 
-    const logoExtension = logoFileValue.name.split(".").pop() || "png";
-    const logoFileName = `${image.product.slug}-${Date.now()}-logo.${logoExtension}`;
+    // 🔒 使用安全扩展名（不信任原文件名）
+    const EXTENSION_MAP: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+
+    const safeExt = EXTENSION_MAP[logoFileValue.type] ?? "png";
+
+    const logoFileName = `${image.product.slug}-${Date.now()}-logo.${safeExt}`;
     const logoFilePath = path.join(uploadDir, logoFileName);
 
     const logoArrayBuffer = await logoFileValue.arrayBuffer();
@@ -1087,8 +1122,10 @@ export async function applyLogoWatermarkToSelectedProductImagesAction(
     redirect(`/admin/products/${productId}?error=missing-logo-file`);
   }
 
-  if (!logoFileValue.type.startsWith("image/")) {
-    redirect(`/admin/products/${productId}?error=invalid-logo-file`);
+  const logoUploadError = getSingleImageUploadError(logoFileValue);
+
+  if (logoUploadError) {
+    redirect(`/admin/products/${productId}?error=${logoUploadError}`);
   }
 
   const product = await prisma.product.findUnique({

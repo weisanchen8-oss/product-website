@@ -24,6 +24,7 @@ import { ConfirmSubmitButton } from "@/components/admin/confirm-submit-button";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { ImageSelectToolbar } from "@/components/admin/image-select-toolbar";
 import { ConfirmSubmitActionButton } from "@/components/admin/confirm-submit-action-button";
+import { LogoImageUploadField } from "@/components/admin/logo-image-upload-field";
 
 type AdminProductEditPageProps = {
   params: Promise<{
@@ -426,12 +427,7 @@ export default async function AdminProductEditPage({
 
           {/* 左侧输入区 */}
           <div className="admin-watermark-input-group">
-            <input
-              type="file"
-              name="logoFile"
-              accept="image/*"
-              className="admin-input"
-            />
+            <LogoImageUploadField />
 
             <input
               type="text"
