@@ -209,21 +209,6 @@ async function main() {
 
   const allProducts = await prisma.product.findMany();
 
-  for (const product of allProducts) {
-    await prisma.productImage.create({
-      data: {
-        productId: product.id,
-        originalUrl: `/uploads/products/${product.slug}.png`,
-        processedUrl: `/uploads/products/${product.slug}-processed.png`,
-        isProcessed: true,
-        processingStatus: "success",
-        logoApplied: true,
-        isCover: true,
-        sortOrder: 1,
-      },
-    });
-  }
-
   await prisma.siteContent.createMany({
     data: [
       {
