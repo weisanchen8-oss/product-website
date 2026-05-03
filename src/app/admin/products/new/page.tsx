@@ -1,7 +1,7 @@
 /**
  * 文件作用：
  * 定义后台新增产品页。
- * 当前阶段支持创建真实产品数据，并尽量降低普通员工填写难度。
+ * 当前阶段支持创建真实产品数据，并提供表单错误提示、产品参数编辑和安全图片上传入口。
  */
 
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { AdminActionToast } from "@/components/admin/admin-action-toast";
 import { prisma } from "@/lib/prisma";
 import { createProductAction } from "@/app/admin/products/actions";
 import { ProductSpecsEditor } from "@/components/admin/product-specs-editor";
+import { ProductImageUploadField } from "@/components/admin/product-image-upload-field";
 
 type AdminProductNewPageProps = {
   searchParams: Promise<{
@@ -29,6 +30,10 @@ function getErrorMessage(error?: string) {
       return "创建失败：请填写价格信息。";
     case "invalid-specs-json":
       return "创建失败：产品参数 JSON 格式不正确。";
+    case "invalid-image-type":
+      return "创建失败：只支持 JPG / PNG / WEBP 格式图片。";
+    case "image-too-large":
+      return "创建失败：单张图片大小不能超过 2MB。";
     case "create-failed":
       return "创建失败：请检查 slug 是否重复或数据是否有效。";
     default:
@@ -39,8 +44,8 @@ function getErrorMessage(error?: string) {
 export default async function AdminProductNewPage({
   searchParams,
 }: AdminProductNewPageProps) {
-  const { error } = await searchParams;
-  const errorMessage = getErrorMessage(error);
+  const params = await searchParams;
+  const errorMessage = getErrorMessage(params.error);
 
   const categories = await prisma.category.findMany({
     where: { isActive: true },
@@ -63,10 +68,7 @@ export default async function AdminProductNewPage({
       </div>
 
       <div className="admin-form-card">
-        <form
-          action={createProductAction}
-          className="stack-form"
-        >
+        <form action={createProductAction} className="stack-form">
           <label className="form-field">
             <span>产品名称 *</span>
             <input type="text" name="name" placeholder="例如：工业设备基础款 A" />
@@ -77,11 +79,7 @@ export default async function AdminProductNewPage({
 
           <label className="form-field">
             <span>英文产品名称（可选）</span>
-            <input
-              type="text"
-              name="nameEn"
-              placeholder="例如：Industrial Water Pump"
-            />
+            <input type="text" name="nameEn" placeholder="例如：Industrial Water Pump" />
             <small className="form-help-text">
               用于英文前台页面展示；不填写时英文页面会显示中文名称。
             </small>
@@ -149,11 +147,7 @@ export default async function AdminProductNewPage({
 
           <label className="form-field">
             <span>关键词（可选）</span>
-            <input
-              type="text"
-              name="keywords"
-              placeholder="例如：工业设备,企业采购,基础款"
-            />
+            <input type="text" name="keywords" placeholder="例如：工业设备,企业采购,基础款" />
             <small className="form-help-text">
               多个关键词可用逗号分隔，用于搜索匹配。
             </small>
@@ -172,21 +166,10 @@ export default async function AdminProductNewPage({
           <div className="admin-form-section">
             <h2>产品图片</h2>
             <p className="form-help-text">
-              可上传多张产品图片。第一张图片默认可作为产品展示封面，后续将支持 AI 自动抠图、白底图和水印处理。
+              可上传多张产品图片。第一张图片默认可作为产品展示封面，后续支持 AI 自动抠图、白底图和水印处理。
             </p>
 
-            <label className="form-field">
-              <span>上传产品图片</span>
-              <input
-                type="file"
-                name="images"
-                accept="image/*"
-                multiple
-              />
-              <small className="form-help-text">
-                支持 JPG、PNG、WebP 等常见图片格式，可一次选择多张。
-              </small>
-            </label>
+            <ProductImageUploadField />
 
             <label className="admin-checkbox-field">
               <input type="checkbox" name="enableAiImageProcessing" />
@@ -201,9 +184,7 @@ export default async function AdminProductNewPage({
           <label className="form-field">
             <span>销量数（可选）</span>
             <input type="number" name="salesCount" placeholder="可不填，默认为 0" />
-            <small className="form-help-text">
-              用于热销产品自动补位排序。
-            </small>
+            <small className="form-help-text">用于热销产品自动补位排序。</small>
           </label>
 
           <div className="admin-form-section">

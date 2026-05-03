@@ -17,6 +17,15 @@ import { removeBackgroundWithRemoveBg } from "@/lib/ai-image/providers/removebg"
 import { createWhiteBackgroundImage } from "@/lib/ai-image/white-background";
 import { createTextWatermarkImage } from "@/lib/ai-image/text-watermark";
 import { createLogoWatermarkImage } from "@/lib/ai-image/logo-watermark";
+import { requireAdminAction } from "@/lib/auth";
+
+function sanitizeInput(value: string) {
+  return value
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function normalizeSlug(value: string) {
   return value
@@ -166,12 +175,12 @@ function buildSpecsJsonEnFromFormData(formData: FormData) {
 }
 
 async function getProductPayload(formData: FormData, currentId?: number) {
-  const name = String(formData.get("name") ?? "").trim();
+  const name = sanitizeInput(String(formData.get("name") ?? "").trim());
+  const shortDesc = sanitizeInput(String(formData.get("shortDesc") ?? "").trim());
+  const fullDesc = sanitizeInput(String(formData.get("fullDesc") ?? "").trim());
+  const keywords = sanitizeInput(String(formData.get("keywords") ?? "").trim());
   const slugRaw = String(formData.get("slug") ?? "").trim();
   const categoryId = Number(formData.get("categoryId"));
-  const shortDesc = String(formData.get("shortDesc") ?? "").trim();
-  const fullDesc = String(formData.get("fullDesc") ?? "").trim();
-  const keywords = String(formData.get("keywords") ?? "").trim();
   const priceText = String(formData.get("priceText") ?? "").trim();
   const salesCount = getNumberOrZero(formData.get("salesCount"));
   const isActive = formData.get("isActive") === "on";
@@ -243,14 +252,43 @@ function getUpdateErrorRedirect(id: number, error: unknown) {
   return `/admin/products/${id}?error=update-failed`;
 }
 
+function getProductImageUploadError(files: File[]) {
+  const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  for (const file of files) {
+    if (!(file instanceof File) || file.size === 0) {
+      continue;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      return "image-too-large";
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      return "invalid-image-type";
+    }
+  }
+
+  return null;
+}
+
 async function saveUploadedProductImages(options: {
   productId: number;
   productSlug: string;
   files: File[];
   existingImageCount?: number;
 }) {
+  const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+  const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const EXTENSION_MAP: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+
   const validFiles = options.files.filter(
-    (file) => file instanceof File && file.size > 0 && file.type.startsWith("image/")
+    (file) => file instanceof File && file.size > 0
   );
 
   if (validFiles.length === 0) {
@@ -264,11 +302,23 @@ async function saveUploadedProductImages(options: {
 
   for (let index = 0; index < validFiles.length; index += 1) {
     const file = validFiles[index];
-    const fileExtension = file.name.split(".").pop() || "png";
-    const safeFileName = `${options.productSlug}-${Date.now()}-${index}.${fileExtension}`;
-    const filePath = path.join(uploadDir, safeFileName);
 
+    if (file.size > MAX_IMAGE_SIZE) {
+      redirect("/admin/products/new?error=image-too-large");
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      redirect("/admin/products/new?error=invalid-image-type");
+    }
+
+    const fileExtension = EXTENSION_MAP[file.type] ?? "png";
+    const safeFileName = `${options.productSlug}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}-${index}.${fileExtension}`;
+
+    const filePath = path.join(uploadDir, safeFileName);
     const arrayBuffer = await file.arrayBuffer();
+
     await fs.writeFile(filePath, Buffer.from(arrayBuffer));
 
     const publicUrl = `/uploads/products/${safeFileName}`;
@@ -392,6 +442,7 @@ function getImageSnapshot(image: {
 }
 
 export async function createProductAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   let payload: Awaited<ReturnType<typeof getProductPayload>>;
 
   try {
@@ -400,14 +451,20 @@ export async function createProductAction(formData: FormData) {
     redirect(getCreateErrorRedirect(error));
   }
 
+  const imageFiles = formData
+    .getAll("images")
+    .filter((item): item is File => item instanceof File);
+
+  const imageUploadError = getProductImageUploadError(imageFiles);
+
+  if (imageUploadError) {
+    redirect(`/admin/products/new?error=${imageUploadError}`);
+  }
+
   try {
     const product = await prisma.product.create({
       data: payload,
     });
-
-    const imageFiles = formData
-      .getAll("images")
-      .filter((item): item is File => item instanceof File);
 
     const createdImages = await saveUploadedProductImages({
       productId: product.id,
@@ -439,6 +496,7 @@ export async function createProductAction(formData: FormData) {
 }
 
 export async function updateProductAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const id = Number(formData.get("id"));
 
   if (!id || Number.isNaN(id)) {
@@ -491,6 +549,7 @@ export async function updateProductAction(formData: FormData) {
 }
 
 export async function uploadProductImageAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const fileValue = formData.get("image");
   const autoAiProcess = formData.get("autoAiProcess") === "on";
@@ -616,6 +675,7 @@ export async function uploadProductImageAction(formData: FormData) {
 }
 
 export async function processProductImageWithAiAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
 
@@ -722,6 +782,7 @@ export async function processProductImageWithAiAction(formData: FormData) {
 }
 
 export async function applyTextWatermarkToProductImageAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
   const watermarkText = String(formData.get("watermarkText") ?? "").trim();
@@ -812,6 +873,7 @@ export async function applyTextWatermarkToProductImageAction(formData: FormData)
 export async function applyTextWatermarkToSelectedProductImagesAction(
   formData: FormData
 ) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const watermarkText = String(formData.get("watermarkText") ?? "").trim();
 
@@ -902,6 +964,7 @@ export async function applyTextWatermarkToSelectedProductImagesAction(
 }
 
 export async function applyLogoWatermarkToProductImageAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
   const logoFileValue = formData.get("logoFile");
@@ -1003,6 +1066,7 @@ export async function applyLogoWatermarkToProductImageAction(formData: FormData)
 export async function applyLogoWatermarkToSelectedProductImagesAction(
   formData: FormData
 ) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const logoFileValue = formData.get("logoFile");
 
@@ -1102,6 +1166,7 @@ export async function applyLogoWatermarkToSelectedProductImagesAction(
 }
 
 export async function setProductCoverImageAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
 
@@ -1164,6 +1229,7 @@ export async function setProductCoverImageAction(formData: FormData) {
 }
 
 export async function deleteProductImageAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productId = Number(formData.get("productId"));
   const imageId = Number(formData.get("imageId"));
 
@@ -1238,6 +1304,7 @@ export async function deleteProductImageAction(formData: FormData) {
 }
 
 export async function bulkManageProductsAction(formData: FormData) {
+  await requireAdminAction(); // 🔒 权限校验
   const productIdValues = formData.getAll("productIds");
   const bulkAction = String(formData.get("bulkAction") ?? "");
   const promotionId = Number(formData.get("promotionId"));

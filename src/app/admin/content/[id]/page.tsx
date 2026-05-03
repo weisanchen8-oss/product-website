@@ -156,6 +156,17 @@ export default async function AdminContentEditPage({
             <small>用于前台页面中的主标题或模块标题。</small>
           </label>
 
+          <label className="form-field">
+            <span>英文标题</span>
+            <input
+              type="text"
+              name="titleEn"
+              defaultValue={contentItem.titleEn ?? ""}
+              placeholder="For example: Professional B2B Product Platform"
+            />
+            <small>用于英文前台页面展示；不填写时英文页面会回退显示中文标题。</small>
+          </label>
+
           {contentItem.contentKey !== "home_advantages" ? (
             <label className="form-field">
               <span>正文内容</span>
@@ -168,6 +179,22 @@ export default async function AdminContentEditPage({
               />
               <small>建议使用简洁、正式、适合企业展示的文字。</small>
             </label>
+          ) : null}
+
+          {contentItem.contentKey !== "home_advantages" ? (
+            <>
+              <label className="form-field">
+                <span>英文正文内容</span>
+                <textarea
+                  name="contentEn"
+                  defaultValue={contentItem.contentEn ?? ""}
+                  placeholder="Please enter the English content displayed on the English frontend page."
+                  className="admin-textarea"
+                  rows={8}
+                />
+                <small>用于英文前台页面展示；不填写时英文页面会回退显示中文正文。</small>
+              </label>
+            </>
           ) : null}
 
           <label className="form-field">
@@ -210,7 +237,9 @@ export default async function AdminContentEditPage({
           <ContentVisualEditor
             contentKey={contentItem.contentKey}
             defaultExtraJson={contentItem.extraJson}
+            defaultExtraJsonEn={contentItem.extraJsonEn}
             defaultContent={contentItem.content}
+            defaultContentEn={contentItem.contentEn}
           />
 
           <div className="admin-form-actions">

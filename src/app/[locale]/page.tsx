@@ -190,11 +190,23 @@ export default async function LocaleHomePage({
               </div>
 
               <div className="space-y-6">
-                <h1 className="max-w-3xl text-5xl font-bold leading-tight tracking-tight text-white md:text-6xl">
+                <h1
+                  className={
+                    isEn
+                      ? "max-w-2xl text-4xl font-bold leading-[1.08] tracking-tight text-white md:text-5xl lg:text-[56px]"
+                      : "max-w-3xl text-5xl font-bold leading-tight tracking-tight text-white md:text-6xl"
+                  }
+                >
                   {bannerTitle}
                 </h1>
 
-                <p className="max-w-2xl text-lg leading-8 text-white/76">
+                <p
+                  className={
+                    isEn
+                      ? "max-w-2xl text-base leading-8 text-white/75"
+                      : "max-w-2xl text-lg leading-8 text-white/75"
+                  }
+                >
                   {bannerContent}
                 </p>
               </div>

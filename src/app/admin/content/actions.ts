@@ -85,6 +85,9 @@ export async function updateSiteContentAction(formData: FormData) {
   const imageUrlValue = formData.get("imageUrl");
   const imageFileValue = formData.get("imageFile");
   const extraJsonValue = formData.get("extraJson");
+  const titleEnValue = formData.get("titleEn");
+  const contentEnValue = formData.get("contentEn");
+  const extraJsonEnValue = formData.get("extraJsonEn");
 
   const id = Number(idValue);
 
@@ -96,8 +99,11 @@ export async function updateSiteContentAction(formData: FormData) {
   const content = normalizeTextValue(contentValue);
   const manualImageUrl = normalizeTextValue(imageUrlValue);
   const extraJson = normalizeTextValue(extraJsonValue);
+  const titleEn = normalizeTextValue(titleEnValue);
+  const contentEn = normalizeTextValue(contentEnValue);
+  const extraJsonEn = normalizeTextValue(extraJsonEnValue);
 
-  if (!isValidJsonText(extraJson)) {
+  if (!isValidJsonText(extraJson) || !isValidJsonText(extraJsonEn)) {
     redirect(`/admin/content/${id}?error=invalid-json`);
   }
 
@@ -111,9 +117,12 @@ export async function updateSiteContentAction(formData: FormData) {
     where: { id },
     data: {
       title,
+      titleEn,
       content,
+      contentEn,
       imageUrl: finalImageUrl,
       extraJson,
+      extraJsonEn,
     },
   });
 

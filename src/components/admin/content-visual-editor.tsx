@@ -1,12 +1,12 @@
 /**
  * 文件作用：
  * 内容管理可视化编辑组件。
- * 将技术化 JSON 配置转换为中文表单。
+ * 将技术化 JSON 配置转换为中文/英文表单。
  * 高级 JSON 配置默认隐藏，点击后可展开查看。
  * 当前支持：
- * - home_banner：首页按钮配置
+ * - home_banner：首页按钮配置 + 英文按钮配置
  * - home_company_intro：首页公司介绍按钮配置
- * - home_advantages：首页优势卡片内容配置
+ * - home_advantages：首页优势卡片内容配置 + 英文优势卡片内容配置
  * - inquiry_success_contact：询单成功后的联系信息配置
  * - 其他模块：保留高级配置入口
  */
@@ -18,7 +18,9 @@ import { useMemo, useState } from "react";
 type ContentVisualEditorProps = {
   contentKey: string;
   defaultExtraJson: string | null;
+  defaultExtraJsonEn?: string | null;
   defaultContent: string | null;
+  defaultContentEn?: string | null;
 };
 
 type AdvantageItem = {
@@ -61,9 +63,11 @@ function getStringValue(value: unknown) {
 }
 
 function AdvancedJsonEditor({
+  name = "extraJson",
   value,
   description = "高级配置通常由系统自动生成，普通使用者一般不需要修改。",
 }: {
+  name?: string;
   value: string;
   description?: string;
 }) {
@@ -74,7 +78,7 @@ function AdvancedJsonEditor({
       <p>{description}</p>
 
       <textarea
-        name="extraJson"
+        name={name}
         value={value}
         readOnly
         className="admin-textarea"
@@ -87,16 +91,28 @@ function AdvancedJsonEditor({
 export function ContentVisualEditor({
   contentKey,
   defaultExtraJson,
+  defaultExtraJsonEn,
   defaultContent,
+  defaultContentEn,
 }: ContentVisualEditorProps) {
   const parsedJson = useMemo(
     () => safeParseJson(defaultExtraJson),
     [defaultExtraJson]
   );
 
+  const parsedJsonEn = useMemo(
+    () => safeParseJson(defaultExtraJsonEn ?? null),
+    [defaultExtraJsonEn]
+  );
+
   const parsedContentArray = useMemo(
     () => safeParseArray(defaultContent),
     [defaultContent]
+  );
+
+  const parsedContentArrayEn = useMemo(
+    () => safeParseArray(defaultContentEn ?? null),
+    [defaultContentEn]
   );
 
   const [primaryButtonText, setPrimaryButtonText] = useState(
@@ -110,6 +126,13 @@ export function ContentVisualEditor({
   );
   const [secondaryButtonHref, setSecondaryButtonHref] = useState(
     getStringValue(parsedJson.secondaryButtonHref)
+  );
+
+  const [primaryButtonTextEn, setPrimaryButtonTextEn] = useState(
+    getStringValue(parsedJsonEn.primaryButtonText)
+  );
+  const [secondaryButtonTextEn, setSecondaryButtonTextEn] = useState(
+    getStringValue(parsedJsonEn.secondaryButtonText)
   );
 
   const [introButtonText, setIntroButtonText] = useState(
@@ -137,6 +160,17 @@ export function ContentVisualEditor({
         ]
   );
 
+  const [advantageItemsEn, setAdvantageItemsEn] = useState<AdvantageItem[]>(
+    parsedContentArrayEn.length > 0
+      ? parsedContentArrayEn
+      : [
+          { title: "", description: "" },
+          { title: "", description: "" },
+          { title: "", description: "" },
+          { title: "", description: "" },
+        ]
+  );
+
   function updateAdvantageItem(
     index: number,
     field: keyof AdvantageItem,
@@ -149,11 +183,30 @@ export function ContentVisualEditor({
     );
   }
 
+  function updateAdvantageItemEn(
+    index: number,
+    field: keyof AdvantageItem,
+    value: string
+  ) {
+    setAdvantageItemsEn((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    );
+  }
+
   if (contentKey === "home_banner") {
     const visualJson = {
       primaryButtonText,
       primaryButtonHref,
       secondaryButtonText,
+      secondaryButtonHref,
+    };
+
+    const visualJsonEn = {
+      primaryButtonText: primaryButtonTextEn,
+      primaryButtonHref,
+      secondaryButtonText: secondaryButtonTextEn,
       secondaryButtonHref,
     };
 
@@ -203,7 +256,35 @@ export function ContentVisualEditor({
           </label>
         </div>
 
+        <div className="admin-visual-editor-grid">
+          <label>
+            <small>英文主按钮显示文字</small>
+            <input
+              type="text"
+              value={primaryButtonTextEn}
+              onChange={(event) => setPrimaryButtonTextEn(event.target.value)}
+              placeholder="For example: View Products"
+            />
+          </label>
+
+          <label>
+            <small>英文副按钮显示文字</small>
+            <input
+              type="text"
+              value={secondaryButtonTextEn}
+              onChange={(event) => setSecondaryButtonTextEn(event.target.value)}
+              placeholder="For example: Contact Us"
+            />
+          </label>
+        </div>
+
         <AdvancedJsonEditor value={JSON.stringify(visualJson)} />
+        <textarea
+          name="extraJsonEn"
+          value={JSON.stringify(visualJsonEn)}
+          readOnly
+          hidden
+        />
       </div>
     );
   }
@@ -250,12 +331,16 @@ export function ContentVisualEditor({
       (item) => item.title.trim() || item.description.trim()
     );
 
+    const cleanItemsEn = advantageItemsEn.filter(
+      (item) => item.title.trim() || item.description.trim()
+    );
+
     return (
       <div className="form-field">
         <span>首页优势展示</span>
 
         {advantageItems.map((item, index) => (
-          <div key={index} className="admin-adv-card">
+          <div key={`zh-${index}`} className="admin-adv-card">
             <strong>优势 {index + 1}</strong>
 
             <input
@@ -279,9 +364,45 @@ export function ContentVisualEditor({
           </div>
         ))}
 
+        <div className="mt-6">
+          <span>英文首页优势展示</span>
+
+          {advantageItemsEn.map((item, index) => (
+            <div key={`en-${index}`} className="admin-adv-card">
+              <strong>Advantage {index + 1}</strong>
+
+              <input
+                type="text"
+                value={item.title}
+                onChange={(event) =>
+                  updateAdvantageItemEn(index, "title", event.target.value)
+                }
+                placeholder="Title, for example: Professional Showcase"
+              />
+
+              <textarea
+                value={item.description}
+                onChange={(event) =>
+                  updateAdvantageItemEn(index, "description", event.target.value)
+                }
+                placeholder="Description, for example: Present product information clearly."
+                className="admin-textarea"
+                rows={3}
+              />
+            </div>
+          ))}
+        </div>
+
         <textarea
           name="content"
           value={JSON.stringify(cleanItems)}
+          readOnly
+          hidden
+        />
+
+        <textarea
+          name="contentEn"
+          value={JSON.stringify(cleanItemsEn)}
           readOnly
           hidden
         />
@@ -368,6 +489,14 @@ export function ContentVisualEditor({
           name="extraJson"
           defaultValue={defaultExtraJson ?? ""}
           placeholder='例如：{"key":"value"}'
+          className="admin-textarea"
+          rows={8}
+        />
+
+        <textarea
+          name="extraJsonEn"
+          defaultValue={defaultExtraJsonEn ?? ""}
+          placeholder='For example: {"key":"value"}'
           className="admin-textarea"
           rows={8}
         />

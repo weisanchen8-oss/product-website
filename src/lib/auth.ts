@@ -1,13 +1,21 @@
 /**
  * 文件作用：
- * 提供前台用户认证和后台管理员识别工具。
- * 当前阶段使用 cookie 保存登录用户 ID，并通过 ADMIN_EMAILS 判断后台访问权限。
+ * 提供用户登录识别、管理员识别、后台权限强制校验工具。
+ * 当前使用 cookie 保存登录用户 ID，并通过 ADMIN_EMAILS 判断后台管理员。
  */
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
 export const AUTH_COOKIE_NAME = "b2b_user_id";
+
+function getAdminEmailList() {
+  return (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
@@ -30,10 +38,7 @@ export async function getCurrentAdminUser() {
     return null;
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
+  const adminEmails = getAdminEmailList();
 
   if (!adminEmails.includes(currentUser.email.toLowerCase())) {
     return null;
@@ -52,10 +57,7 @@ export async function getAdminAccessStatus() {
     };
   }
 
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
+  const adminEmails = getAdminEmailList();
 
   if (!adminEmails.includes(currentUser.email.toLowerCase())) {
     return {
@@ -68,4 +70,36 @@ export async function getAdminAccessStatus() {
     status: "allowed" as const,
     user: currentUser,
   };
+}
+
+/**
+ * 后台页面专用：
+ * 未登录跳转登录页，非管理员跳转首页。
+ */
+export async function requireAdminPage() {
+  const accessStatus = await getAdminAccessStatus();
+
+  if (accessStatus.status === "not-logged-in") {
+    redirect("/login?next=/admin");
+  }
+
+  if (accessStatus.status === "not-admin") {
+    redirect("/");
+  }
+
+  return accessStatus.user;
+}
+
+/**
+ * 后台服务端动作专用：
+ * 用在 create / update / delete 等 server action 里。
+ */
+export async function requireAdminAction() {
+  const adminUser = await getCurrentAdminUser();
+
+  if (!adminUser) {
+    throw new Error("无权限操作：请使用管理员账号登录。");
+  }
+
+  return adminUser;
 }
