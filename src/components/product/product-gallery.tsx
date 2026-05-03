@@ -3,8 +3,8 @@
  * 定义产品详情页图片画廊组件。
  * 支持：
  * - 点击缩略图切换主图
+ * - 缩略图横向排列，避免纵向堆叠导致排版混乱
  * - 图片为空时根据 locale 显示中文 / 英文提示
- * - 避免服务端和客户端渲染结构不一致
  */
 
 "use client";
@@ -30,7 +30,7 @@ export function ProductGallery({ images, locale = "zh" }: ProductGalleryProps) {
 
   if (images.length === 0) {
     return (
-      <div className="product-image-placeholder">
+      <div className="flex aspect-[4/3] items-center justify-center rounded-[24px] bg-[#EAF1F8] text-sm font-semibold text-[#1E3A5F]/60">
         {isEn ? "No image" : "暂无图片"}
       </div>
     );
@@ -39,36 +39,34 @@ export function ProductGallery({ images, locale = "zh" }: ProductGalleryProps) {
   const activeImage = images[activeIndex] ?? images[0];
 
   return (
-    <div className="product-gallery">
-      <div className="product-main-image">
+    <div className="space-y-5">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-slate-100">
         <Image
           src={activeImage.url}
           alt={activeImage.alt}
-          width={720}
-          height={540}
-          className="product-main-image-content"
+          fill
+          className="object-contain"
           priority
         />
       </div>
 
-      <div className="product-thumb-list">
+      <div className="flex gap-3 overflow-x-auto pb-2">
         {images.map((image, index) => (
           <button
             key={image.id}
             type="button"
-            className={
+            className={`relative h-20 w-28 shrink-0 overflow-hidden rounded-2xl border bg-slate-100 transition ${
               index === activeIndex
-                ? "product-thumb-button active"
-                : "product-thumb-button"
-            }
+                ? "border-[#1E3A5F] ring-2 ring-[#1E3A5F]/20"
+                : "border-slate-200 hover:border-[#1E3A5F]/40"
+            }`}
             onClick={() => setActiveIndex(index)}
           >
             <Image
               src={image.url}
               alt={image.alt}
-              width={96}
-              height={72}
-              className="product-thumb-image"
+              fill
+              className="object-cover"
             />
           </button>
         ))}

@@ -310,7 +310,10 @@ async function deleteProductUploadFile(imageUrl: string | null) {
 
 function revalidateProductPaths(productSlug?: string, productId?: number) {
   revalidatePath("/");
-  revalidatePath("/products");
+  revalidatePath("/zh");
+  revalidatePath("/en");
+  revalidatePath("/zh/products");
+  revalidatePath("/en/products");
   revalidatePath("/admin");
   revalidatePath("/admin/products");
 
@@ -319,7 +322,8 @@ function revalidateProductPaths(productSlug?: string, productId?: number) {
   }
 
   if (productSlug) {
-    revalidatePath(`/product/${productSlug}`);
+    revalidatePath(`/zh/product/${productSlug}`);
+    revalidatePath(`/en/product/${productSlug}`);
   }
 }
 

@@ -27,7 +27,7 @@ export default async function LocaleCompanyPage({
 
   return (
     <div className="site-shell">
-      <SiteHeader locale={locale} />
+      <SiteHeader locale={locale} variant="solid" />
 
       <main>
         <PageHero

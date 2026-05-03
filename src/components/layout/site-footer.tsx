@@ -1,42 +1,94 @@
-/**
- * 文件作用：
- * 定义前台网站公共页脚组件。
- * 当前支持根据 locale 显示中文 / 英文文案。
- */
-
 import Link from "next/link";
-import { FrontendLocale, getFrontendPath } from "@/lib/frontend-i18n";
+import { getFrontendPath, type FrontendLocale } from "@/lib/frontend-i18n";
 
-type SiteFooterProps = {
-  locale?: FrontendLocale;
-};
-
-export function SiteFooter({ locale = "zh" }: SiteFooterProps) {
+export function SiteFooter({ locale = "zh" }: { locale?: FrontendLocale }) {
   const isEn = locale === "en";
 
   return (
-    <footer className="site-footer">
-      <div className="container footer-inner">
-        <div>
-          <h2>{isEn ? "B2B Product Website" : "B2B 产品展示系统"}</h2>
-          <p>
-            {isEn
-              ? "A professional product showcase and inquiry platform for export-oriented businesses."
-              : "面向出口贸易企业的产品展示与询单管理平台。"}
-          </p>
+    <footer className="mt-16 border-t border-slate-200 bg-white">
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        {/* 上半部分 */}
+        <div className="grid gap-10 md:grid-cols-3">
+          {/* 品牌信息 */}
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">
+              {isEn ? "B2B Product Platform" : "B2B 产品展示系统"}
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              {isEn
+                ? "A professional product showcase and inquiry management platform for export-oriented businesses."
+                : "面向出口贸易企业的产品展示与询单管理平台。"}
+            </p>
+          </div>
+
+          {/* 导航 */}
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900">
+              {isEn ? "Navigation" : "网站导航"}
+            </h4>
+
+            <div className="mt-3 flex flex-col gap-2 text-sm text-slate-500">
+              <Link href={getFrontendPath(locale)} className="hover:text-blue-600">
+                {isEn ? "Home" : "首页"}
+              </Link>
+
+              <Link
+                href={getFrontendPath(locale, "/products")}
+                className="hover:text-blue-600"
+              >
+                {isEn ? "Products" : "产品中心"}
+              </Link>
+
+              <Link
+                href={getFrontendPath(locale, "/company")}
+                className="hover:text-blue-600"
+              >
+                {isEn ? "Company" : "公司介绍"}
+              </Link>
+
+              <Link
+                href={getFrontendPath(locale, "/contact")}
+                className="hover:text-blue-600"
+              >
+                {isEn ? "Contact" : "联系我们"}
+              </Link>
+            </div>
+          </div>
+
+          {/* 联系方式 */}
+          <div>
+            <h4 className="text-sm font-semibold text-slate-900">
+              {isEn ? "Contact" : "联系方式"}
+            </h4>
+
+            <div className="mt-3 space-y-2 text-sm text-slate-500">
+              <p>Email: contact@company.com</p>
+              <p>WhatsApp: +86 123 4567 8888</p>
+              <p>{isEn ? "Working Hours: 9:00 - 18:00" : "工作时间：9:00 - 18:00"}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="footer-links">
-          <Link href={getFrontendPath(locale)}>{isEn ? "Home" : "首页"}</Link>
-          <Link href={getFrontendPath(locale, "/products")}>
-            {isEn ? "Products" : "产品中心"}
-          </Link>
-          <Link href={getFrontendPath(locale, "/company")}>
-            {isEn ? "Company" : "公司介绍"}
-          </Link>
-          <Link href={getFrontendPath(locale, "/contact")}>
-            {isEn ? "Contact" : "联系我们"}
-          </Link>
+        {/* 分割线 */}
+        <div className="my-8 border-t border-slate-200" />
+
+        {/* 底部版权 */}
+        <div className="flex flex-col items-center justify-between gap-3 text-sm text-slate-400 md:flex-row">
+          <p>
+            © {new Date().getFullYear()}{" "}
+            {isEn ? "B2B Product Platform" : "B2B 产品展示系统"}
+          </p>
+
+          <div className="flex gap-4">
+            <Link href="#" className="hover:text-blue-600">
+              {isEn ? "Privacy Policy" : "隐私政策"}
+            </Link>
+
+            <Link href="#" className="hover:text-blue-600">
+              {isEn ? "Terms of Service" : "服务条款"}
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

@@ -27,7 +27,7 @@ export default async function LocaleInquiryCartPage({
 
   return (
     <div className="site-shell">
-      <SiteHeader locale={locale} />
+      <SiteHeader locale={locale} variant="solid" />
 
       <main>
         <PageHero

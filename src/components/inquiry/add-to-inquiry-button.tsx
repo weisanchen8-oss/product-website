@@ -90,25 +90,29 @@ export function AddToInquiryButton({
 
   return (
     <div className="add-inquiry-box">
-      <div className="product-quantity-row">
-        <span>{isEn ? "Quantity:" : "数量："}</span>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-slate-900">
+            {isEn ? "Quantity:" : "数量："}
+          </span>
 
-        <div className="quantity-box">
-          <button type="button" onClick={decreaseQuantity}>
-            -
-          </button>
+          <div className="quantity-box">
+            <button type="button" onClick={decreaseQuantity}>
+              -
+            </button>
 
-          <span>{quantity}</span>
-
-          <button type="button" onClick={increaseQuantity}>
-            +
-          </button>
+            <span>{quantity}</span>
+  
+            <button type="button" onClick={increaseQuantity}>
+              +
+            </button>
+          </div>
         </div>
-      </div>
 
-      <button type="button" className="primary-button" onClick={handleAddToCart}>
-        {isEn ? "Add to Inquiry Cart" : "加入询单清单"}
-      </button>
+        <button type="button" className="primary-button" onClick={handleAddToCart}>
+          {isEn ? "Add to Inquiry Cart" : "加入询单清单"}
+        </button>
+      </div>
 
       {message ? <p className="add-inquiry-message">{message}</p> : null}
     </div>

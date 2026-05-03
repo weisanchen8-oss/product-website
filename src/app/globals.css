@@ -10,13 +10,21 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f8fa;
-  --foreground: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
   --card: #ffffff;
-  --primary: #111827;
+
+  --primary: #1e3a5f;
+  --primary-hover: #244b75;
+  --primary-soft: #eaf1f8;
   --primary-foreground: #ffffff;
+
+  --accent: #2a7be4;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
 }
 
 * {
@@ -155,8 +163,9 @@ textarea {
   --ui-surface: #ffffff;
   --ui-surface-soft: #f1f5f9;
 
-  --ui-primary: #2563eb;
-  --ui-primary-soft: #dbeafe;
+  --ui-primary: #1e3a5f;
+  --ui-primary-hover: #244b75;
+  --ui-primary-soft: #eaf1f8;
 
   --ui-success: #22c55e;
   --ui-warning: #f59e0b;
@@ -373,11 +382,11 @@ textarea:focus {
   inset: 0;
   transform: translateX(-100%);
   background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.55),
-    transparent
+    135deg,
+    #1e3a5f 0%,
+    #244b75 100%
   );
+  color: white;
   animation: ui-skeleton-loading 1.3s infinite;
 }
 
@@ -555,4 +564,48 @@ textarea:focus {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* ================================
+   商务深蓝主题：按钮统一
+================================ */
+
+.primary-button,
+.admin-primary-btn,
+.admin-search-button {
+  border: none;
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(30, 58, 95, 0.18);
+}
+
+.primary-button:hover,
+.admin-primary-btn:hover,
+.admin-search-button:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 14px 32px rgba(30, 58, 95, 0.24);
+}
+
+.ghost-button,
+.admin-reset-link {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--primary);
+}
+
+.ghost-button:hover,
+.admin-reset-link:hover {
+  border-color: rgba(30, 58, 95, 0.28);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.danger-button {
+  border: none;
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.danger-button:hover {
+  background: #dc2626;
 }

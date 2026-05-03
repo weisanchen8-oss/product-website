@@ -203,7 +203,7 @@ export default async function AdminProductEditPage({
 
         <div className="admin-action-group">
           <Link
-            href={`/product/${product.slug}`}
+            href={`/zh/product/${product.slug}`}
             className="ghost-button inline-button-link"
           >
             预览产品
