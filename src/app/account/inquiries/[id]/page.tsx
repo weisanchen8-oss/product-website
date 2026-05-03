@@ -108,7 +108,7 @@ export default async function AccountInquiryDetailPage({
               <div className="account-log-list">
                 {inquiry.logs.map((log) => (
                   <div key={log.id} className="account-log-item">
-                    <strong>{getInquiryStatusText(log.status)}</strong>
+                    <strong>{getInquiryStatusText(log.status ?? "pending")}</strong>
                     <p>{log.note || "无备注"}</p>
                     <span>{log.createdAt.toLocaleString("zh-CN")}</span>
                   </div>

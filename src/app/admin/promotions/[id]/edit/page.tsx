@@ -53,11 +53,13 @@ export default async function EditPromotionPage({
           promotion={{
             id: promotion.id,
             title: promotion.title,
+            titleEn: promotion.titleEn,
             description: promotion.description || "",
+            descriptionEn: promotion.descriptionEn,
             discountType: promotion.discountType,
             discountValue: promotion.discountValue,
-            startAt: formatDateInput(promotion.startAt),
-            endAt: formatDateInput(promotion.endAt),
+            startAt: promotion.startAt.toISOString().slice(0, 16),
+            endAt: promotion.endAt.toISOString().slice(0, 16),
             isActive: promotion.isActive,
           }}
         />

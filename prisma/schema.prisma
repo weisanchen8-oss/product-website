@@ -16,22 +16,22 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Category {
-  id          Int      @id @default(autoincrement())
-  name        String
+  id            Int      @id @default(autoincrement())
+  name          String
   nameEn        String?
   descriptionEn String?
-  slug        String   @unique
-  description String?
-  imageUrl    String?
-  parentId    Int?
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  slug          String   @unique
+  description   String?
+  imageUrl      String?
+  parentId      Int?
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   parent   Category?  @relation("CategoryToChildren", fields: [parentId], references: [id])
   children Category[] @relation("CategoryToChildren")
@@ -39,19 +39,19 @@ model Category {
 }
 
 model Product {
-  id        Int     @id @default(autoincrement())
-  name      String
+  id          Int     @id @default(autoincrement())
+  name        String
   nameEn      String?
   shortDescEn String?
   fullDescEn  String?
-  slug      String  @unique
-  shortDesc String
-  fullDesc  String?
-  keywords  String?
-  priceText String
-  specsJson String?
+  slug        String  @unique
+  shortDesc   String
+  fullDesc    String?
+  keywords    String?
+  priceText   String
+  specsJson   String?
   specsJsonEn String?
-  isActive  Boolean @default(true)
+  isActive    Boolean @default(true)
 
   isFeatured   Boolean @default(false)
   featuredSort Int     @default(0)
@@ -64,9 +64,9 @@ model Product {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  category     Category       @relation(fields: [categoryId], references: [id])
-  images       ProductImage[]
-  inquiryItems InquiryItem[]
+  category          Category           @relation(fields: [categoryId], references: [id])
+  images            ProductImage[]
+  inquiryItems      InquiryItem[]
   promotionProducts PromotionProduct[]
 }
 
@@ -100,48 +100,48 @@ model PromotionProduct {
 }
 
 model ProductImage {
-  id                  Int       @id @default(autoincrement())
-  productId           Int
-  watermarkedUrl      String?
-  watermarkType       String?
-  watermarkText       String?
-  watermarkAppliedAt  DateTime?
-  
+  id                 Int       @id @default(autoincrement())
+  productId          Int
+  watermarkedUrl     String?
+  watermarkType      String?
+  watermarkText      String?
+  watermarkAppliedAt DateTime?
+
   // 原图地址：用户上传后的原始产品图片
-  originalUrl         String
+  originalUrl String
 
   // AI处理后的图片地址：例如白底图、去背景图、水印图
-  processedUrl        String?
+  processedUrl String?
 
   // 是否已经成功生成处理图
-  isProcessed         Boolean   @default(false)
+  isProcessed Boolean @default(false)
 
   // AI处理状态：
   // idle = 未处理
   // processing = 处理中
   // success = 处理成功
   // failed = 处理失败
-  processingStatus    String    @default("idle")
+  processingStatus String @default("idle")
 
   // AI处理失败时记录错误原因
-  processingError     String?
+  processingError String?
 
   // 实际使用的AI服务商，例如 removebg / replicate / photoroom
-  aiProvider          String?
+  aiProvider String?
 
   // AI处理完成时间
-  processedAt         DateTime?
+  processedAt DateTime?
 
   // 是否优先使用处理图作为封面展示
-  useProcessedAsCover Boolean   @default(false)
+  useProcessedAsCover Boolean @default(false)
 
   // 是否已添加Logo或水印
-  logoApplied         Boolean   @default(false)
+  logoApplied Boolean @default(false)
 
-  sortOrder           Int       @default(0)
-  isCover             Boolean   @default(false)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  sortOrder Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id])
 }
@@ -201,7 +201,7 @@ model InquiryItem {
   subtotalSnapshot    String?
   createdAt           DateTime @default(now())
 
-  inquiry Inquiry @relation(fields: [inquiryId], references: [id])
+  inquiry Inquiry  @relation(fields: [inquiryId], references: [id])
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
 
