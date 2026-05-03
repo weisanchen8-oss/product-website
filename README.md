@@ -2,16 +2,14 @@
 
 一个面向外贸 / B2B 场景的产品展示网站，支持多语言、多产品管理、AI图片优化与询单流程管理，具备完整的后台运营能力。
 
-👉 在线体验：
-https://product-website-v2.vercel.app
+
+## 📸 在线体验
+👉 https://product-website-v2.vercel.app
 
 （注意，体验链接中所有数据均为虚拟数据。
 ❗️后台链接未开放，如有体验需要，请通过此邮箱联系我weisan_chen@163.com）
 ---
 
-## 📸 页面预览
-(public\preview\image.png)
-(public\preview\image-1.png)
 
 ## 🚀 项目背景
 
