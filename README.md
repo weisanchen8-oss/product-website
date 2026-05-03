@@ -8,8 +8,11 @@ https://product-website-v2.vercel.app
 （注意，体验链接中所有数据均为虚拟数据。
 ❗️后台链接未开放，如有体验需要，请通过此邮箱联系我weisan_chen@163.com）
 ---
-![alt text](image.png)
-![alt text](image-1.png)
+
+## 📸 页面预览
+(public\preview\image.png)
+(public\preview\image-1.png)
+
 ## 🚀 项目背景
 
 在传统外贸企业中，产品展示网站普遍存在以下问题：
