@@ -8,7 +8,9 @@
 "use server";
 
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
+import { del, put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -288,6 +290,120 @@ function getProductImageUploadError(files: File[]) {
   return null;
 }
 
+const PRODUCT_IMAGE_FOLDER = "products";
+
+const IMAGE_EXTENSION_MAP: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+function getSafeImageExtension(file: File) {
+  return IMAGE_EXTENSION_MAP[file.type] ?? "png";
+}
+
+function buildBlobFileName(options: {
+  productSlug: string;
+  label?: string;
+  extension: string;
+}) {
+  const safeSlug = normalizeSlug(options.productSlug) || "product";
+  const randomText = Math.random().toString(36).slice(2);
+
+  return `${PRODUCT_IMAGE_FOLDER}/${safeSlug}-${Date.now()}-${randomText}${
+    options.label ? `-${options.label}` : ""
+  }.${options.extension}`;
+}
+
+async function uploadFileToBlob(options: {
+  file: File;
+  productSlug: string;
+  label?: string;
+}) {
+  const blobPath = buildBlobFileName({
+    productSlug: options.productSlug,
+    label: options.label,
+    extension: getSafeImageExtension(options.file),
+  });
+
+  const blob = await put(blobPath, options.file, {
+    access: "public",
+    contentType: options.file.type || "application/octet-stream",
+  });
+
+  return blob.url;
+}
+
+async function uploadBufferToBlob(options: {
+  buffer: Buffer;
+  productSlug: string;
+  label: string;
+  contentType?: string;
+}) {
+  const blobPath = buildBlobFileName({
+    productSlug: options.productSlug,
+    label: options.label,
+    extension: "png",
+  });
+
+  const blob = await put(blobPath, options.buffer, {
+    access: "public",
+    contentType: options.contentType ?? "image/png",
+  });
+
+  return blob.url;
+}
+
+function isRemoteUrl(value: string) {
+  return value.startsWith("http://") || value.startsWith("https://");
+}
+
+async function writeTempFileFromBuffer(options: {
+  buffer: Buffer;
+  fileName: string;
+}) {
+  const tempDir = path.join(os.tmpdir(), "product-images");
+  await fs.mkdir(tempDir, { recursive: true });
+
+  const tempPath = path.join(tempDir, options.fileName);
+  await fs.writeFile(tempPath, options.buffer);
+
+  return tempPath;
+}
+
+async function writeUploadedFileToTempFile(file: File) {
+  const extension = getSafeImageExtension(file);
+  const arrayBuffer = await file.arrayBuffer();
+
+  return writeTempFileFromBuffer({
+    buffer: Buffer.from(arrayBuffer),
+    fileName: `upload-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${extension}`,
+  });
+}
+
+async function getImageSourceFilePath(imageUrl: string) {
+  if (isRemoteUrl(imageUrl)) {
+    const res = await fetch(imageUrl);
+
+    if (!res.ok) {
+      throw new Error("missing_source");
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+
+    return writeTempFileFromBuffer({
+      buffer: Buffer.from(arrayBuffer),
+      fileName: `source-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.png`,
+    });
+  }
+
+  return path.join(process.cwd(), "public", imageUrl.replace(/^\/+/, ""));
+}
+
 async function saveUploadedProductImages(options: {
   productId: number;
   productSlug: string;
@@ -296,11 +412,6 @@ async function saveUploadedProductImages(options: {
 }) {
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-  const EXTENSION_MAP: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  };
 
   const validFiles = options.files.filter(
     (file) => file instanceof File && file.size > 0
@@ -309,9 +420,6 @@ async function saveUploadedProductImages(options: {
   if (validFiles.length === 0) {
     return [];
   }
-
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-  await fs.mkdir(uploadDir, { recursive: true });
 
   const createdImages = [];
 
@@ -326,17 +434,12 @@ async function saveUploadedProductImages(options: {
       redirect("/admin/products/new?error=invalid-image-type");
     }
 
-    const fileExtension = EXTENSION_MAP[file.type] ?? "png";
-    const safeFileName = `${options.productSlug}-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}-${index}.${fileExtension}`;
+    const publicUrl = await uploadFileToBlob({
+      file,
+      productSlug: options.productSlug,
+      label: "original",
+    });
 
-    const filePath = path.join(uploadDir, safeFileName);
-    const arrayBuffer = await file.arrayBuffer();
-
-    await fs.writeFile(filePath, Buffer.from(arrayBuffer));
-
-    const publicUrl = `/uploads/products/${safeFileName}`;
     const sortOrder = (options.existingImageCount ?? 0) + index + 1;
 
     const image = await prisma.productImage.create({
@@ -360,7 +463,21 @@ async function saveUploadedProductImages(options: {
 }
 
 async function deleteProductUploadFile(imageUrl: string | null) {
-  if (!imageUrl || !imageUrl.startsWith("/uploads/products/")) {
+  if (!imageUrl) {
+    return;
+  }
+
+  if (isRemoteUrl(imageUrl)) {
+    try {
+      await del(imageUrl);
+    } catch {
+      // Blob 文件可能已不存在，不影响数据库删除结果
+    }
+
+    return;
+  }
+
+  if (!imageUrl.startsWith("/uploads/products/")) {
     return;
   }
 
@@ -369,7 +486,7 @@ async function deleteProductUploadFile(imageUrl: string | null) {
   try {
     await fs.unlink(filePath);
   } catch {
-    // 文件可能已不存在，不影响数据库删除结果
+    // 本地旧文件可能已不存在，不影响数据库删除结果
   }
 }
 
@@ -592,17 +709,13 @@ export async function uploadProductImageAction(formData: FormData) {
     redirect("/admin/products?error=product-not-found");
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-  await fs.mkdir(uploadDir, { recursive: true });
+  const publicUrl = await uploadFileToBlob({
+    file: fileValue,
+    productSlug: product.slug,
+    label: "original",
+  });
 
-  const fileExtension = fileValue.name.split(".").pop() || "png";
-  const fileName = `${product.slug}-${Date.now()}.${fileExtension}`;
-  const filePath = path.join(uploadDir, fileName);
-
-  const arrayBuffer = await fileValue.arrayBuffer();
-  await fs.writeFile(filePath, Buffer.from(arrayBuffer));
-
-  const publicUrl = `/uploads/products/${fileName}`;
+const filePath = await getImageSourceFilePath(publicUrl);
   const shouldBeCover = product.images.length === 0;
 
   const image = await prisma.productImage.create({
@@ -634,11 +747,11 @@ export async function uploadProductImageAction(formData: FormData) {
       const transparentBuffer = await removeBackgroundWithRemoveBg(filePath);
       const processedBuffer = await createWhiteBackgroundImage(transparentBuffer);
 
-      const processedFileName = `${product.slug}-${Date.now()}-processed.png`;
-      const processedFilePath = path.join(uploadDir, processedFileName);
-      const processedPublicUrl = `/uploads/products/${processedFileName}`;
-
-      await fs.writeFile(processedFilePath, processedBuffer);
+      const processedPublicUrl = await uploadBufferToBlob({
+        buffer: processedBuffer,
+        productSlug: product.slug,
+        label: "processed",
+      });
 
       finalImage = await prisma.productImage.update({
         where: { id: image.id },
@@ -726,23 +839,16 @@ export async function processProductImageWithAiAction(formData: FormData) {
       },
     });
 
-    const originalFilePath = path.join(
-      process.cwd(),
-      "public",
-      image.originalUrl.replace(/^\/+/, "")
-    );
+    const originalFilePath = await getImageSourceFilePath(image.originalUrl);
 
     const transparentBuffer = await removeBackgroundWithRemoveBg(originalFilePath);
     const processedBuffer = await createWhiteBackgroundImage(transparentBuffer);
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const processedFileName = `${image.product.slug}-${Date.now()}-processed.png`;
-    const processedFilePath = path.join(uploadDir, processedFileName);
-    const processedPublicUrl = `/uploads/products/${processedFileName}`;
-
-    await fs.writeFile(processedFilePath, processedBuffer);
+    const processedPublicUrl = await uploadBufferToBlob({
+      buffer: processedBuffer,
+      productSlug: image.product.slug,
+      label: "processed",
+    });
 
     const updatedImage = await prisma.productImage.update({
       where: { id: imageId },
@@ -828,11 +934,7 @@ export async function applyTextWatermarkToProductImageAction(formData: FormData)
   const sourceUrl =
     image.watermarkedUrl ?? image.processedUrl ?? image.originalUrl;
 
-  const sourceFilePath = path.join(
-    process.cwd(),
-    "public",
-    sourceUrl.replace(/^\/+/, "")
-  );
+  const sourceFilePath = await getImageSourceFilePath(sourceUrl);
 
   try {
     await fs.access(sourceFilePath);
@@ -842,14 +944,11 @@ export async function applyTextWatermarkToProductImageAction(formData: FormData)
       watermarkText,
     });
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const watermarkedFileName = `${image.product.slug}-${Date.now()}-watermarked.png`;
-    const watermarkedFilePath = path.join(uploadDir, watermarkedFileName);
-    const watermarkedPublicUrl = `/uploads/products/${watermarkedFileName}`;
-
-    await fs.writeFile(watermarkedFilePath, watermarkedBuffer);
+    const watermarkedPublicUrl = await uploadBufferToBlob({
+      buffer: watermarkedBuffer,
+     productSlug: image.product.slug,
+      label: "watermarked",
+    });
 
     const updatedImage = await prisma.productImage.update({
       where: { id: imageId },

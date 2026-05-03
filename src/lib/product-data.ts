@@ -14,8 +14,7 @@ import { prisma } from "@/lib/prisma";
 
 const productInclude = {
   images: {
-    where: { isCover: true },
-    orderBy: { sortOrder: "asc" as const },
+    orderBy: [{ isCover: "desc" as const }, { sortOrder: "asc" as const }],
     take: 1,
   },
   category: {
